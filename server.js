@@ -18,6 +18,9 @@ let messages = [];
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = '1622005';
 
+// Track admin login status
+let isAdminLoggedIn = false;
+
 // Rate limiting to prevent abuse
 const rateLimit = new Map(); // Store IP addresses and their request counts
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -58,7 +61,7 @@ wss.on('connection', (ws, req) => {
   console.log(`New client connected from IP: ${ip}`);
 
   // Send existing messages to the new client
-  ws.send(JSON.stringify({ type: 'init', messages }));
+  ws.send(JSON.stringify({ type: 'init', messages, isAdminLoggedIn }));
 
   // Handle incoming messages from clients
   ws.on('message', (message) => {
@@ -87,16 +90,21 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'admin') {
         // Authenticate the admin
         if (data.username === ADMIN_USERNAME && data.password === ADMIN_PASSWORD) {
-          if (data.command === 'clearLogs') {
-            // Clear all logs
-            messages = [];
-            console.log('Logs cleared by admin.');
-            ws.send(JSON.stringify({ type: 'admin', message: 'Logs cleared successfully.' }));
+          if (data.command === 'login') {
+            // Admin login successful
+            isAdminLoggedIn = true;
+            console.log('Admin logged in.');
+            ws.send(JSON.stringify({ type: 'admin', message: 'Login successful.', isAdminLoggedIn }));
+          } else if (data.command === 'logout') {
+            // Admin logout
+            isAdminLoggedIn = false;
+            console.log('Admin logged out.');
+            ws.send(JSON.stringify({ type: 'admin', message: 'Logout successful.', isAdminLoggedIn }));
           } else if (data.command === 'deleteMessages' && Array.isArray(data.messageIds)) {
             // Delete specific messages
             messages = messages.filter((msg, index) => !data.messageIds.includes(index));
             console.log('Messages deleted by admin:', data.messageIds);
-            ws.send(JSON.stringify({ type: 'admin', message: 'Messages deleted successfully.' }));
+            ws.send(JSON.stringify({ type: 'admin', message: 'Messages deleted successfully.', isAdminLoggedIn }));
           }
         } else {
           // Authentication failed
@@ -123,7 +131,7 @@ wss.on('connection', (ws, req) => {
       // Broadcast the new message to all connected clients
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'message', message: newMessage }));
+          client.send(JSON.stringify({ type: 'message', message: newMessage, isAdminLoggedIn }));
         }
       });
     } catch (error) {
