@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kip Maker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     /* General Styles */
     body {
-      font-family: 'Arial', sans-serif;
+      font-family: 'Press Start 2P', cursive;
       background-color: #f4f4f9;
       color: #333;
       margin: 0;
@@ -29,7 +30,7 @@
     }
 
     h1 {
-      font-size: 2.5rem;
+      font-size: 2rem;
       color: #ff6f61;
       margin-bottom: 20px;
     }
@@ -49,6 +50,7 @@
       border-radius: 5px;
       font-size: 1rem;
       resize: none;
+      font-family: 'Press Start 2P', cursive;
     }
 
     #messageForm button {
@@ -60,6 +62,7 @@
       font-size: 1rem;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      font-family: 'Press Start 2P', cursive;
     }
 
     #messageForm button:hover {
@@ -74,36 +77,7 @@
       border-radius: 5px;
       font-size: 1rem;
       margin-bottom: 20px;
-    }
-
-    /* Admin Form Styles */
-    #adminForm {
-      margin-top: 20px;
-    }
-
-    #adminForm input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 1rem;
-      margin-bottom: 10px;
-    }
-
-    #adminForm button {
-      background-color: #333;
-      color: #fff;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      margin: 5px 0; /* Add spacing between buttons */
-    }
-
-    #adminForm button:hover {
-      background-color: #555;
+      font-family: 'Press Start 2P', cursive;
     }
 
     /* Messages List Styles */
@@ -120,8 +94,6 @@
     }
 
     #messageList li {
-      display: flex;
-      align-items: center;
       padding: 10px;
       border-bottom: 1px solid #ddd;
       font-size: 0.9rem;
@@ -132,9 +104,21 @@
       border-bottom: none;
     }
 
-    #messageList input[type="checkbox"] {
-      margin-right: 10px;
-      display: none; /* Hidden by default */
+    /* Rating Styles */
+    .rating {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .rating span {
+      cursor: pointer;
+      font-size: 1.2rem;
+      color: #ffd700;
+    }
+
+    .rating span:hover {
+      color: #ff6f61;
     }
 
     /* Error Message Styles */
@@ -156,15 +140,6 @@
     <h2>Messages</h2>
     <ul id="messageList"></ul>
     <div id="errorMessage" class="error-message"></div>
-
-    <!-- Admin Form -->
-    <form id="adminForm">
-      <input type="text" id="adminUsername" placeholder="Admin Username" required>
-      <input type="password" id="adminPassword" placeholder="Admin Password" required>
-      <button type="button" id="confirmLogin">Log In</button>
-      <button type="button" id="deleteSelected" style="display: none;">Delete Selected Messages</button>
-      <button type="button" id="logOut" style="display: none;">Log Out</button>
-    </form>
   </div>
 
   <script>
@@ -173,14 +148,6 @@
     const messageList = document.getElementById('messageList');
     const errorMessage = document.getElementById('errorMessage');
     const searchBar = document.getElementById('searchBar');
-    const adminForm = document.getElementById('adminForm');
-    const adminUsername = document.getElementById('adminUsername');
-    const adminPassword = document.getElementById('adminPassword');
-    const confirmLoginButton = document.getElementById('confirmLogin');
-    const deleteSelectedButton = document.getElementById('deleteSelected');
-    const logOutButton = document.getElementById('logOut');
-
-    let isAdminLoggedIn = false;
 
     // Connect to the WebSocket server
     const ws = new WebSocket(`wss://${window.location.host}`);
@@ -198,21 +165,16 @@
         if (data.type === 'init') {
           // Display initial messages
           data.messages.forEach((msg, index) => addMessageToList(msg, index));
-          isAdminLoggedIn = data.isAdminLoggedIn;
-          updateAdminUI();
         } else if (data.type === 'message') {
           // Display new message
           addMessageToList(data.message, messages.length);
+        } else if (data.type === 'update') {
+          // Update existing message
+          updateMessage(data.message, data.messageId);
         } else if (data.type === 'error') {
           // Display error message
           console.error('Server error:', data.message);
           errorMessage.textContent = `Server error: ${data.message}`;
-        } else if (data.type === 'admin') {
-          // Handle admin actions
-          console.log('Admin action:', data.message);
-          errorMessage.textContent = data.message;
-          isAdminLoggedIn = data.isAdminLoggedIn;
-          updateAdminUI();
         }
       } catch (error) {
         console.error('Failed to parse server message:', error);
@@ -258,93 +220,69 @@
       messages.forEach((message) => {
         const text = message.textContent.toLowerCase();
         if (text.includes(searchTerm)) {
-          message.style.display = 'flex';
+          message.style.display = 'block';
         } else {
           message.style.display = 'none';
         }
       });
     });
 
-    // Handle admin login
-    confirmLoginButton.addEventListener('click', () => {
-      const username = adminUsername.value.trim();
-      const password = adminPassword.value.trim();
-
-      if (!username || !password) {
-        errorMessage.textContent = 'Please enter admin credentials.';
-        return;
-      }
-
-      // Send the login command to the server
-      ws.send(JSON.stringify({
-        type: 'admin',
-        command: 'login',
-        username: username,
-        password: password
-      }));
-
-      // Clear the form
-      adminUsername.value = '';
-      adminPassword.value = '';
-    });
-
-    // Handle delete selected messages
-    deleteSelectedButton.addEventListener('click', () => {
-      // Get the selected message IDs
-      const checkboxes = document.querySelectorAll('#messageList input[type="checkbox"]:checked');
-      const messageIds = Array.from(checkboxes).map((checkbox) => parseInt(checkbox.dataset.index));
-
-      if (messageIds.length === 0) {
-        errorMessage.textContent = 'No messages selected.';
-        return;
-      }
-
-      // Send the delete command to the server
-      ws.send(JSON.stringify({
-        type: 'admin',
-        command: 'deleteMessages',
-        messageIds: messageIds
-      }));
-    });
-
-    // Handle log out
-    logOutButton.addEventListener('click', () => {
-      // Send the logout command to the server
-      ws.send(JSON.stringify({
-        type: 'admin',
-        command: 'logout'
-      }));
-    });
-
     // Helper function to add a message to the list
     function addMessageToList(msg, index) {
       const li = document.createElement('li');
       li.innerHTML = `
-        <input type="checkbox" data-index="${index}" ${isAdminLoggedIn ? '' : 'style="display: none;"'}>
-        <span>${msg.timestamp}: ${msg.text}</span>
+        <div>${msg.timestamp}: ${msg.text}</div>
+        <div class="rating">
+          ${[1, 2, 3, 4, 5].map((star) => `
+            <span data-index="${index}" data-rating="${star}">★</span>
+          `).join('')}
+        </div>
+        <div>Rating: ${calculateAverageRating(msg.ratings)} (${msg.ratings ? msg.ratings.length : 0} votes)</div>
       `;
       messageList.appendChild(li);
       // Scroll to the bottom of the message list
       messageList.scrollTop = messageList.scrollHeight;
+
+      // Add event listeners to rating stars
+      li.querySelectorAll('.rating span').forEach((star) => {
+        star.addEventListener('click', () => {
+          const messageId = star.dataset.index;
+          const rating = star.dataset.rating;
+          ws.send(JSON.stringify({ type: 'rate', messageId, rating: parseInt(rating) }));
+        });
+      });
     }
 
-    // Helper function to update the admin UI
-    function updateAdminUI() {
-      if (isAdminLoggedIn) {
-        confirmLoginButton.style.display = 'none';
-        deleteSelectedButton.style.display = 'block';
-        logOutButton.style.display = 'block';
-        document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
-          checkbox.style.display = 'inline-block';
-        });
-      } else {
-        confirmLoginButton.style.display = 'block';
-        deleteSelectedButton.style.display = 'none';
-        logOutButton.style.display = 'none';
-        document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
-          checkbox.style.display = 'none';
+    // Helper function to update a message
+    function updateMessage(msg, messageId) {
+      const li = messageList.children[messageId];
+      if (li) {
+        li.innerHTML = `
+          <div>${msg.timestamp}: ${msg.text}</div>
+          <div class="rating">
+            ${[1, 2, 3, 4, 5].map((star) => `
+              <span data-index="${messageId}" data-rating="${star}">★</span>
+            `).join('')}
+          </div>
+          <div>Rating: ${calculateAverageRating(msg.ratings)} (${msg.ratings ? msg.ratings.length : 0} votes)</div>
+        `;
+
+        // Add event listeners to rating stars
+        li.querySelectorAll('.rating span').forEach((star) => {
+          star.addEventListener('click', () => {
+            const messageId = star.dataset.index;
+            const rating = star.dataset.rating;
+            ws.send(JSON.stringify({ type: 'rate', messageId, rating: parseInt(rating) }));
+          });
         });
       }
+    }
+
+    // Helper function to calculate average rating
+    function calculateAverageRating(ratings) {
+      if (!ratings || ratings.length === 0) return 'No ratings';
+      const sum = ratings.reduce((acc, rating) => acc + rating, 0);
+      return (sum / ratings.length).toFixed(2);
     }
   </script>
 </body>

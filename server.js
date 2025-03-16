@@ -21,40 +21,6 @@ const ADMIN_PASSWORD = '1622005';
 // Track admin login status
 let isAdminLoggedIn = false;
 
-// Rate limiting to prevent abuse
-const rateLimit = new Map(); // Store IP addresses and their request counts
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 100; // Max requests per IP per window
-
-// Middleware to enforce rate limiting
-app.use((req, res, next) => {
-  const ip = req.ip; // Get the client's IP address
-  const currentTime = Date.now();
-
-  // Initialize rate limit data for the IP if it doesn't exist
-  if (!rateLimit.has(ip)) {
-    rateLimit.set(ip, { count: 1, startTime: currentTime });
-  } else {
-    const ipData = rateLimit.get(ip);
-
-    // Reset the count if the window has expired
-    if (currentTime - ipData.startTime > RATE_LIMIT_WINDOW) {
-      ipData.count = 1;
-      ipData.startTime = currentTime;
-    } else {
-      ipData.count += 1;
-    }
-
-    // Block the request if the limit is exceeded
-    if (ipData.count > RATE_LIMIT_MAX_REQUESTS) {
-      res.status(429).send('Too many requests. Please try again later.');
-      return;
-    }
-  }
-
-  next();
-});
-
 // WebSocket connection handler
 wss.on('connection', (ws, req) => {
   const ip = req.socket.remoteAddress; // Get the client's IP address
@@ -86,29 +52,21 @@ wss.on('connection', (ws, req) => {
         data = { text: messageString };
       }
 
-      // Check if the message is an admin command
-      if (data.type === 'admin') {
-        // Authenticate the admin
-        if (data.username === ADMIN_USERNAME && data.password === ADMIN_PASSWORD) {
-          if (data.command === 'login') {
-            // Admin login successful
-            isAdminLoggedIn = true;
-            console.log('Admin logged in.');
-            ws.send(JSON.stringify({ type: 'admin', message: 'Login successful.', isAdminLoggedIn }));
-          } else if (data.command === 'logout') {
-            // Admin logout
-            isAdminLoggedIn = false;
-            console.log('Admin logged out.');
-            ws.send(JSON.stringify({ type: 'admin', message: 'Logout successful.', isAdminLoggedIn }));
-          } else if (data.command === 'deleteMessages' && Array.isArray(data.messageIds)) {
-            // Delete specific messages
-            messages = messages.filter((msg, index) => !data.messageIds.includes(index));
-            console.log('Messages deleted by admin:', data.messageIds);
-            ws.send(JSON.stringify({ type: 'admin', message: 'Messages deleted successfully.', isAdminLoggedIn }));
+      // Check if the message is a rating
+      if (data.type === 'rate') {
+        const { messageId, rating } = data;
+        if (messages[messageId]) {
+          if (!messages[messageId].ratings) {
+            messages[messageId].ratings = [];
           }
-        } else {
-          // Authentication failed
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid admin credentials.' }));
+          messages[messageId].ratings.push(rating);
+          console.log(`Message ${messageId} rated ${rating} stars.`);
+          // Broadcast the updated message to all clients
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'update', message: messages[messageId], messageId }));
+            }
+          });
         }
         return;
       }
@@ -125,7 +83,7 @@ wss.on('connection', (ws, req) => {
       }
 
       // Save the message
-      const newMessage = { text: data.text, timestamp: new Date() };
+      const newMessage = { text: data.text, timestamp: new Date(), ratings: [] };
       messages.push(newMessage);
 
       // Broadcast the new message to all connected clients
