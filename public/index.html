@@ -66,6 +66,16 @@
       background-color: #ff4a3d;
     }
 
+    /* Search Bar Styles */
+    #searchBar {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      margin-bottom: 20px;
+    }
+
     /* Messages List Styles */
     #messageList {
       list-style-type: none;
@@ -105,6 +115,7 @@
       <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
       <button type="submit">Send</button>
     </form>
+    <input type="text" id="searchBar" placeholder="Search messages...">
     <h2>Messages</h2>
     <ul id="messageList"></ul>
     <div id="errorMessage" class="error-message"></div>
@@ -115,6 +126,7 @@
     const messageInput = document.getElementById('messageInput');
     const messageList = document.getElementById('messageList');
     const errorMessage = document.getElementById('errorMessage');
+    const searchBar = document.getElementById('searchBar');
 
     // Connect to the WebSocket server
     const ws = new WebSocket(`wss://${window.location.host}`);
@@ -174,6 +186,21 @@
       // Send the message to the server in JSON format
       ws.send(JSON.stringify({ text: message }));
       messageInput.value = ''; // Clear the input
+    });
+
+    // Handle search bar input
+    searchBar.addEventListener('input', () => {
+      const searchTerm = searchBar.value.toLowerCase();
+      const messages = Array.from(messageList.children);
+
+      messages.forEach((message) => {
+        const text = message.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          message.style.display = 'block';
+        } else {
+          message.style.display = 'none';
+        }
+      });
     });
 
     // Helper function to add a message to the list
