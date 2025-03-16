@@ -37,6 +37,9 @@
       } else if (data.type === 'message') {
         // Display new message
         addMessageToList(data.message);
+      } else if (data.type === 'error') {
+        // Display error message
+        console.error('Server error:', data.message);
       }
     };
 
@@ -59,7 +62,7 @@
         return;
       }
 
-      // Send the message to the server
+      // Send the message to the server in JSON format
       ws.send(JSON.stringify({ text: message }));
       messageInput.value = ''; // Clear the input
     });

@@ -23,21 +23,29 @@ wss.on('connection', (ws) => {
 
   // Handle incoming messages from clients
   ws.on('message', (message) => {
-    const { text } = JSON.parse(message);
-    if (!text) {
-      return;
-    }
+    try {
+      // Parse the incoming message as JSON
+      const data = JSON.parse(message);
 
-    // Save the message
-    const newMessage = { text, timestamp: new Date() };
-    messages.push(newMessage);
-
-    // Broadcast the new message to all connected clients
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'message', message: newMessage }));
+      // Check if the message has the required "text" field
+      if (!data.text) {
+        throw new Error('Invalid message format: "text" field is required');
       }
-    });
+
+      // Save the message
+      const newMessage = { text: data.text, timestamp: new Date() };
+      messages.push(newMessage);
+
+      // Broadcast the new message to all connected clients
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: 'message', message: newMessage }));
+        }
+      });
+    } catch (error) {
+      console.error('Failed to parse message:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+    }
   });
 
   // Handle client disconnection
