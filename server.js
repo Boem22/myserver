@@ -33,13 +33,10 @@ wss.on('connection', (ws) => {
         data = { text: message };
       }
 
-      // Validate the message structure
-      if (typeof data !== 'object' || data === null) {
-        throw new Error('Message must be a JSON object.');
-      }
-
+      // Ensure the message has a "text" field
       if (!data.text || typeof data.text !== 'string') {
-        throw new Error('Message must contain a "text" field of type string.');
+        // If "text" is missing or invalid, use a default value
+        data.text = 'Invalid message format';
       }
 
       // Save the message
