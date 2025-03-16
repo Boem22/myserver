@@ -30,12 +30,18 @@ wss.on('connection', (ws) => {
         data = JSON.parse(message);
       } catch (parseError) {
         // If parsing fails, assume it's plain text and convert it to JSON
+        console.warn('Received plain text message, converting to JSON:', message);
         data = { text: message };
+      }
+
+      // Ensure the message is an object
+      if (typeof data !== 'object' || data === null) {
+        throw new Error('Message must be a JSON object.');
       }
 
       // Ensure the message has a "text" field
       if (!data.text || typeof data.text !== 'string') {
-        // If "text" is missing or invalid, use a default value
+        console.warn('Message missing "text" field, using default value:', data);
         data.text = 'Invalid message format';
       }
 
