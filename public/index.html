@@ -76,6 +76,35 @@
       margin-bottom: 20px;
     }
 
+    /* Admin Form Styles */
+    #adminForm {
+      margin-top: 20px;
+    }
+
+    #adminForm input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+
+    #adminForm button {
+      background-color: #333;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #adminForm button:hover {
+      background-color: #555;
+    }
+
     /* Messages List Styles */
     #messageList {
       list-style-type: none;
@@ -90,6 +119,8 @@
     }
 
     #messageList li {
+      display: flex;
+      align-items: center;
       padding: 10px;
       border-bottom: 1px solid #ddd;
       font-size: 0.9rem;
@@ -98,6 +129,10 @@
 
     #messageList li:last-child {
       border-bottom: none;
+    }
+
+    #messageList input[type="checkbox"] {
+      margin-right: 10px;
     }
 
     /* Error Message Styles */
@@ -119,6 +154,13 @@
     <h2>Messages</h2>
     <ul id="messageList"></ul>
     <div id="errorMessage" class="error-message"></div>
+
+    <!-- Admin Form -->
+    <form id="adminForm">
+      <input type="text" id="adminUsername" placeholder="Admin Username" required>
+      <input type="password" id="adminPassword" placeholder="Admin Password" required>
+      <button type="button" id="deleteSelected">Delete Selected Messages</button>
+    </form>
   </div>
 
   <script>
@@ -127,6 +169,10 @@
     const messageList = document.getElementById('messageList');
     const errorMessage = document.getElementById('errorMessage');
     const searchBar = document.getElementById('searchBar');
+    const adminForm = document.getElementById('adminForm');
+    const adminUsername = document.getElementById('adminUsername');
+    const adminPassword = document.getElementById('adminPassword');
+    const deleteSelectedButton = document.getElementById('deleteSelected');
 
     // Connect to the WebSocket server
     const ws = new WebSocket(`wss://${window.location.host}`);
@@ -143,14 +189,21 @@
 
         if (data.type === 'init') {
           // Display initial messages
-          data.messages.forEach((msg) => addMessageToList(msg));
+          data.messages.forEach((msg, index) => addMessageToList(msg, index));
         } else if (data.type === 'message') {
           // Display new message
-          addMessageToList(data.message);
+          addMessageToList(data.message, messages.length);
         } else if (data.type === 'error') {
           // Display error message
           console.error('Server error:', data.message);
           errorMessage.textContent = `Server error: ${data.message}`;
+        } else if (data.type === 'admin') {
+          // Display admin confirmation
+          console.log('Admin action:', data.message);
+          errorMessage.textContent = data.message;
+          // Refresh the message list
+          messageList.innerHTML = '';
+          messages.forEach((msg, index) => addMessageToList(msg, index));
         }
       } catch (error) {
         console.error('Failed to parse server message:', error);
@@ -196,17 +249,53 @@
       messages.forEach((message) => {
         const text = message.textContent.toLowerCase();
         if (text.includes(searchTerm)) {
-          message.style.display = 'block';
+          message.style.display = 'flex';
         } else {
           message.style.display = 'none';
         }
       });
     });
 
+    // Handle delete selected messages
+    deleteSelectedButton.addEventListener('click', () => {
+      const username = adminUsername.value.trim();
+      const password = adminPassword.value.trim();
+
+      if (!username || !password) {
+        errorMessage.textContent = 'Please enter admin credentials.';
+        return;
+      }
+
+      // Get the selected message IDs
+      const checkboxes = document.querySelectorAll('#messageList input[type="checkbox"]:checked');
+      const messageIds = Array.from(checkboxes).map((checkbox) => parseInt(checkbox.dataset.index));
+
+      if (messageIds.length === 0) {
+        errorMessage.textContent = 'No messages selected.';
+        return;
+      }
+
+      // Send the delete command to the server
+      ws.send(JSON.stringify({
+        type: 'admin',
+        command: 'deleteMessages',
+        username: username,
+        password: password,
+        messageIds: messageIds
+      }));
+
+      // Clear the form
+      adminUsername.value = '';
+      adminPassword.value = '';
+    });
+
     // Helper function to add a message to the list
-    function addMessageToList(msg) {
+    function addMessageToList(msg, index) {
       const li = document.createElement('li');
-      li.textContent = `${msg.timestamp}: ${msg.text}`;
+      li.innerHTML = `
+        <input type="checkbox" data-index="${index}">
+        <span>${msg.timestamp}: ${msg.text}</span>
+      `;
       messageList.appendChild(li);
       // Scroll to the bottom of the message list
       messageList.scrollTop = messageList.scrollHeight;
