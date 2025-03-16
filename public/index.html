@@ -68,13 +68,13 @@
     }
 
     /* Form Styles */
-    #messageForm {
+    #levelForm {
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    #messageInput {
+    #levelInput {
       width: 100%;
       height: 100px;
       padding: 10px;
@@ -85,7 +85,7 @@
       font-family: 'Press Start 2P', cursive;
     }
 
-    #messageForm button {
+    #levelForm button {
       background-color: #ff6f61;
       color: #fff;
       border: none;
@@ -97,7 +97,7 @@
       font-family: 'Press Start 2P', cursive;
     }
 
-    #messageForm button:hover {
+    #levelForm button:hover {
       background-color: #ff4a3d;
     }
 
@@ -112,8 +112,8 @@
       font-family: 'Press Start 2P', cursive;
     }
 
-    /* Messages List Styles */
-    #messageList {
+    /* Levels List Styles */
+    #levelList {
       list-style-type: none;
       padding: 0;
       margin-top: 20px;
@@ -125,14 +125,14 @@
       background-color: #f9f9f9;
     }
 
-    #messageList li {
+    #levelList li {
       padding: 10px;
       border-bottom: 1px solid #ddd;
       font-size: 0.9rem;
       color: #555;
     }
 
-    #messageList li:last-child {
+    #levelList li:last-child {
       border-bottom: none;
     }
 
@@ -170,31 +170,31 @@
       <input type="text" id="adminUsername" placeholder="Admin Username" required>
       <input type="password" id="adminPassword" placeholder="Admin Password" required>
       <button type="button" id="confirmLogin">Log In</button>
-      <button type="button" id="deleteSelected" style="display: none;">Delete Selected Messages</button>
+      <button type="button" id="deleteSelected" style="display: none;">Delete Selected Levels</button>
       <button type="button" id="logOut" style="display: none;">Log Out</button>
     </div>
 
-    <!-- Message Form -->
-    <form id="messageForm">
-      <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
-      <button type="submit">Send</button>
+    <!-- Level Form -->
+    <form id="levelForm">
+      <textarea id="levelInput" placeholder="Type your level code here..." required></textarea>
+      <button type="submit">Upload Level</button>
     </form>
 
     <!-- Search Bar -->
-    <input type="text" id="searchBar" placeholder="Search messages...">
+    <input type="text" id="searchBar" placeholder="Search levels...">
 
-    <!-- Messages List -->
-    <h2>Messages</h2>
-    <ul id="messageList"></ul>
+    <!-- Levels List -->
+    <h2>Online Levels</h2>
+    <ul id="levelList"></ul>
 
     <!-- Error Message -->
     <div id="errorMessage" class="error-message"></div>
   </div>
 
   <script>
-    const form = document.getElementById('messageForm');
-    const messageInput = document.getElementById('messageInput');
-    const messageList = document.getElementById('messageList');
+    const form = document.getElementById('levelForm');
+    const levelInput = document.getElementById('levelInput');
+    const levelList = document.getElementById('levelList');
     const errorMessage = document.getElementById('errorMessage');
     const searchBar = document.getElementById('searchBar');
     const adminUsername = document.getElementById('adminUsername');
@@ -219,16 +219,16 @@
         const data = JSON.parse(event.data);
 
         if (data.type === 'init') {
-          // Display initial messages
-          data.messages.forEach((msg, index) => addMessageToList(msg, index));
+          // Display initial levels
+          data.levels.forEach((level, index) => addLevelToList(level, index));
           isAdminLoggedIn = data.isAdminLoggedIn;
           updateAdminUI();
-        } else if (data.type === 'message') {
-          // Display new message
-          addMessageToList(data.message, messages.length);
+        } else if (data.type === 'level') {
+          // Display new level
+          addLevelToList(data.level, levelList.children.length);
         } else if (data.type === 'update') {
-          // Update existing message
-          updateMessage(data.message, data.messageId);
+          // Update existing level
+          updateLevel(data.level, data.levelId);
         } else if (data.type === 'error') {
           // Display error message
           console.error('Server error:', data.message);
@@ -256,31 +256,31 @@
     form.addEventListener('submit', (e) => {
       e.preventDefault();
 
-      const message = messageInput.value.trim();
-      if (!message) {
-        errorMessage.textContent = 'Please enter a message.';
+      const level = levelInput.value.trim();
+      if (!level) {
+        errorMessage.textContent = 'Please enter a level code.';
         return;
       }
 
       // Clear previous error messages
       errorMessage.textContent = '';
 
-      // Send the message to the server in JSON format
-      ws.send(JSON.stringify({ text: message }));
-      messageInput.value = ''; // Clear the input
+      // Send the level to the server in JSON format
+      ws.send(JSON.stringify({ text: level }));
+      levelInput.value = ''; // Clear the input
     });
 
     // Handle search bar input
     searchBar.addEventListener('input', () => {
       const searchTerm = searchBar.value.toLowerCase();
-      const messages = Array.from(messageList.children);
+      const levels = Array.from(levelList.children);
 
-      messages.forEach((message) => {
-        const text = message.textContent.toLowerCase();
+      levels.forEach((level) => {
+        const text = level.textContent.toLowerCase();
         if (text.includes(searchTerm)) {
-          message.style.display = 'block';
+          level.style.display = 'block';
         } else {
-          message.style.display = 'none';
+          level.style.display = 'none';
         }
       });
     });
@@ -308,22 +308,22 @@
       adminPassword.value = '';
     });
 
-    // Handle delete selected messages
+    // Handle delete selected levels
     deleteSelectedButton.addEventListener('click', () => {
-      // Get the selected message IDs
-      const checkboxes = document.querySelectorAll('#messageList input[type="checkbox"]:checked');
-      const messageIds = Array.from(checkboxes).map((checkbox) => parseInt(checkbox.dataset.index));
+      // Get the selected level IDs
+      const checkboxes = document.querySelectorAll('#levelList input[type="checkbox"]:checked');
+      const levelIds = Array.from(checkboxes).map((checkbox) => parseInt(checkbox.dataset.index));
 
-      if (messageIds.length === 0) {
-        errorMessage.textContent = 'No messages selected.';
+      if (levelIds.length === 0) {
+        errorMessage.textContent = 'No levels selected.';
         return;
       }
 
       // Send the delete command to the server
       ws.send(JSON.stringify({
         type: 'admin',
-        command: 'deleteMessages',
-        messageIds: messageIds
+        command: 'deleteLevels',
+        levelIds: levelIds
       }));
     });
 
@@ -336,52 +336,52 @@
       }));
     });
 
-    // Helper function to add a message to the list
-    function addMessageToList(msg, index) {
+    // Helper function to add a level to the list
+    function addLevelToList(level, index) {
       const li = document.createElement('li');
       li.innerHTML = `
-        <div>${msg.timestamp}: ${msg.text}</div>
+        <div>${level.timestamp}: ${level.text}</div>
         <div class="rating">
           ${[1, 2, 3, 4, 5].map((star) => `
             <span data-index="${index}" data-rating="${star}">★</span>
           `).join('')}
         </div>
-        <div>Rating: ${calculateAverageRating(msg.ratings)} (${msg.ratings ? msg.ratings.length : 0} votes)</div>
+        <div>Rating: ${calculateAverageRating(level.ratings)} (${level.ratings ? level.ratings.length : 0} votes)</div>
       `;
-      messageList.appendChild(li);
-      // Scroll to the bottom of the message list
-      messageList.scrollTop = messageList.scrollHeight;
+      levelList.appendChild(li);
+      // Scroll to the bottom of the level list
+      levelList.scrollTop = levelList.scrollHeight;
 
       // Add event listeners to rating stars
       li.querySelectorAll('.rating span').forEach((star) => {
         star.addEventListener('click', () => {
-          const messageId = star.dataset.index;
+          const levelId = star.dataset.index;
           const rating = star.dataset.rating;
-          ws.send(JSON.stringify({ type: 'rate', messageId, rating: parseInt(rating) }));
+          ws.send(JSON.stringify({ type: 'rate', levelId, rating: parseInt(rating) }));
         });
       });
     }
 
-    // Helper function to update a message
-    function updateMessage(msg, messageId) {
-      const li = messageList.children[messageId];
+    // Helper function to update a level
+    function updateLevel(level, levelId) {
+      const li = levelList.children[levelId];
       if (li) {
         li.innerHTML = `
-          <div>${msg.timestamp}: ${msg.text}</div>
+          <div>${level.timestamp}: ${level.text}</div>
           <div class="rating">
             ${[1, 2, 3, 4, 5].map((star) => `
-              <span data-index="${messageId}" data-rating="${star}">★</span>
+              <span data-index="${levelId}" data-rating="${star}">★</span>
             `).join('')}
           </div>
-          <div>Rating: ${calculateAverageRating(msg.ratings)} (${msg.ratings ? msg.ratings.length : 0} votes)</div>
+          <div>Rating: ${calculateAverageRating(level.ratings)} (${level.ratings ? level.ratings.length : 0} votes)</div>
         `;
 
         // Add event listeners to rating stars
         li.querySelectorAll('.rating span').forEach((star) => {
           star.addEventListener('click', () => {
-            const messageId = star.dataset.index;
+            const levelId = star.dataset.index;
             const rating = star.dataset.rating;
-            ws.send(JSON.stringify({ type: 'rate', messageId, rating: parseInt(rating) }));
+            ws.send(JSON.stringify({ type: 'rate', levelId, rating: parseInt(rating) }));
           });
         });
       }
@@ -400,14 +400,14 @@
         confirmLoginButton.style.display = 'none';
         deleteSelectedButton.style.display = 'block';
         logOutButton.style.display = 'block';
-        document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
+        document.querySelectorAll('#levelList input[type="checkbox"]').forEach((checkbox) => {
           checkbox.style.display = 'inline-block';
         });
       } else {
         confirmLoginButton.style.display = 'block';
         deleteSelectedButton.style.display = 'none';
         logOutButton.style.display = 'none';
-        document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
+        document.querySelectorAll('#levelList input[type="checkbox"]').forEach((checkbox) => {
           checkbox.style.display = 'none';
         });
       }
