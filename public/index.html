@@ -99,6 +99,7 @@
       font-size: 1rem;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      margin: 5px 0; /* Add spacing between buttons */
     }
 
     #adminForm button:hover {
@@ -160,8 +161,9 @@
     <form id="adminForm">
       <input type="text" id="adminUsername" placeholder="Admin Username" required>
       <input type="password" id="adminPassword" placeholder="Admin Password" required>
-      <button type="button" id="confirmLogin">Confirm Login</button>
+      <button type="button" id="confirmLogin">Log In</button>
       <button type="button" id="deleteSelected" style="display: none;">Delete Selected Messages</button>
+      <button type="button" id="logOut" style="display: none;">Log Out</button>
     </form>
   </div>
 
@@ -176,6 +178,7 @@
     const adminPassword = document.getElementById('adminPassword');
     const confirmLoginButton = document.getElementById('confirmLogin');
     const deleteSelectedButton = document.getElementById('deleteSelected');
+    const logOutButton = document.getElementById('logOut');
 
     let isAdminLoggedIn = false;
 
@@ -304,6 +307,15 @@
       }));
     });
 
+    // Handle log out
+    logOutButton.addEventListener('click', () => {
+      // Send the logout command to the server
+      ws.send(JSON.stringify({
+        type: 'admin',
+        command: 'logout'
+      }));
+    });
+
     // Helper function to add a message to the list
     function addMessageToList(msg, index) {
       const li = document.createElement('li');
@@ -321,12 +333,14 @@
       if (isAdminLoggedIn) {
         confirmLoginButton.style.display = 'none';
         deleteSelectedButton.style.display = 'block';
+        logOutButton.style.display = 'block';
         document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
           checkbox.style.display = 'inline-block';
         });
       } else {
         confirmLoginButton.style.display = 'block';
         deleteSelectedButton.style.display = 'none';
+        logOutButton.style.display = 'none';
         document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
           checkbox.style.display = 'none';
         });
