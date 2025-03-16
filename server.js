@@ -24,21 +24,21 @@ wss.on('connection', (ws) => {
   // Handle incoming messages from clients
   ws.on('message', (message) => {
     try {
-      // Parse the incoming message as JSON
+      // Attempt to parse the incoming message as JSON
       let data;
       try {
         data = JSON.parse(message);
       } catch (parseError) {
-        throw new Error('Invalid JSON format');
+        throw new Error('Invalid JSON format. Please send a valid JSON object.');
       }
 
       // Validate the message structure
       if (typeof data !== 'object' || data === null) {
-        throw new Error('Message must be a JSON object');
+        throw new Error('Message must be a JSON object.');
       }
 
       if (!data.text || typeof data.text !== 'string') {
-        throw new Error('Message must contain a "text" field of type string');
+        throw new Error('Message must contain a "text" field of type string.');
       }
 
       // Save the message
