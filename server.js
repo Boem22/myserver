@@ -9,7 +9,7 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 
 // Serve static files (e.g., index.html)
-app.use(express.static('public')); // Assuming your index.html is in a "public" folder
+app.use(express.static('public'));
 
 // Store messages in memory (for simplicity)
 let messages = [];
