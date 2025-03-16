@@ -220,6 +220,7 @@
 
         if (data.type === 'init') {
           // Display initial levels
+          levelList.innerHTML = ''; // Clear the list
           data.levels.forEach((level, index) => addLevelToList(level, index));
           isAdminLoggedIn = data.isAdminLoggedIn;
           updateAdminUI();
@@ -266,7 +267,7 @@
       errorMessage.textContent = '';
 
       // Send the level to the server in JSON format
-      ws.send(JSON.stringify({ text: level }));
+      ws.send(JSON.stringify({ type: 'level', text: level }));
       levelInput.value = ''; // Clear the input
     });
 
