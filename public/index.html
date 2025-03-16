@@ -60,11 +60,13 @@
     ws.onopen = () => {
       console.log('Connected to WebSocket server');
       // Request initial levels from the server
-      ws.send(JSON.stringify({ type: 'init' }));
+      ws.send(JSON.stringify({ type: 'init', text: '' })); // Add a default 'text' field
     };
 
     // Handle incoming messages from the server
     ws.onmessage = (event) => {
+      console.log('Raw message from server:', event.data); // Debugging: Log raw message
+
       try {
         const data = JSON.parse(event.data);
 
@@ -87,7 +89,7 @@
         }
       } catch (error) {
         console.error('Failed to parse server message:', error);
-        errorMessage.textContent = 'Failed to parse server message.';
+        errorMessage.textContent = 'Failed to parse server message. Check the console for details.';
       }
     };
 
