@@ -3,21 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebSocket Chat</title>
+  <title>Kip Maker</title>
+  <style>
+    /* General Styles */
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      width: 400px;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: #ff6f61;
+      margin-bottom: 20px;
+    }
+
+    /* Form Styles */
+    #messageForm {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #messageInput {
+      width: 100%;
+      height: 100px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      resize: none;
+    }
+
+    #messageForm button {
+      background-color: #ff6f61;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #messageForm button:hover {
+      background-color: #ff4a3d;
+    }
+
+    /* Messages List Styles */
+    #messageList {
+      list-style-type: none;
+      padding: 0;
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 10px;
+      background-color: #f9f9f9;
+    }
+
+    #messageList li {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    #messageList li:last-child {
+      border-bottom: none;
+    }
+
+    /* Error Message Styles */
+    .error-message {
+      color: #ff4a3d;
+      font-size: 0.9rem;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-  <h1>WebSocket Chat</h1>
-  <form id="messageForm">
-    <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
-    <button type="submit">Send</button>
-  </form>
-  <h2>Messages</h2>
-  <ul id="messageList"></ul>
+  <div class="container">
+    <h1>Kip Maker</h1>
+    <form id="messageForm">
+      <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
+      <button type="submit">Send</button>
+    </form>
+    <h2>Messages</h2>
+    <ul id="messageList"></ul>
+    <div id="errorMessage" class="error-message"></div>
+  </div>
 
   <script>
     const form = document.getElementById('messageForm');
     const messageInput = document.getElementById('messageInput');
     const messageList = document.getElementById('messageList');
+    const errorMessage = document.getElementById('errorMessage');
 
     // Connect to the WebSocket server
     const ws = new WebSocket(`wss://${window.location.host}`);
@@ -41,23 +138,24 @@
         } else if (data.type === 'error') {
           // Display error message
           console.error('Server error:', data.message);
-          alert(`Server error: ${data.message}`);
+          errorMessage.textContent = `Server error: ${data.message}`;
         }
       } catch (error) {
         console.error('Failed to parse server message:', error);
+        errorMessage.textContent = 'Failed to parse server message.';
       }
     };
 
     // Handle WebSocket errors
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
-      alert('WebSocket error: Check the console for details.');
+      errorMessage.textContent = 'WebSocket error: Check the console for details.';
     };
 
     // Handle WebSocket connection close
     ws.onclose = () => {
       console.log('Disconnected from WebSocket server');
-      alert('Disconnected from WebSocket server');
+      errorMessage.textContent = 'Disconnected from WebSocket server.';
     };
 
     // Handle form submission
@@ -66,9 +164,12 @@
 
       const message = messageInput.value.trim();
       if (!message) {
-        alert('Please enter a message.');
+        errorMessage.textContent = 'Please enter a message.';
         return;
       }
+
+      // Clear previous error messages
+      errorMessage.textContent = '';
 
       // Send the message to the server in JSON format
       ws.send(JSON.stringify({ text: message }));
@@ -80,6 +181,8 @@
       const li = document.createElement('li');
       li.textContent = `${msg.timestamp}: ${msg.text}`;
       messageList.appendChild(li);
+      // Scroll to the bottom of the message list
+      messageList.scrollTop = messageList.scrollHeight;
     }
   </script>
 </body>
