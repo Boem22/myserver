@@ -1,33 +1,34 @@
 const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-app.use(cors()); // Allow requests from anywhere
-app.use(bodyParser.json());
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-let messages = []; // Store messages in memory
+// Serve static files (e.g., index.html)
+app.use(express.static('public')); // Assuming your index.html is in a "public" folder
 
-// Serve the webpage
-app.use(express.static('public'));
+// Store messages in memory (for simplicity)
+let messages = [];
 
-// API to receive messages
-app.post('/send', (req, res) => {
-    const { message } = req.body;
-    if (message) {
-        messages.push(message);
-        res.json({ success: true, messages });
-    } else {
-        res.status(400).json({ success: false, error: "No message provided" });
-    }
+// Route to receive messages
+app.post('/message', (req, res) => {
+  const { text } = req.body;
+  if (!text) {
+    return res.status(400).send('Message text is required');
+  }
+
+  // Save the message
+  messages.push({ text, timestamp: new Date() });
+  res.send('Message received!');
 });
 
-// API to fetch messages
+// Route to display messages
 app.get('/messages', (req, res) => {
-    res.json(messages);
+  res.json(messages);
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

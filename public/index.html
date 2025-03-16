@@ -1,33 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Messages</title>
-    <script>
-        async function sendMessage() {
-            const message = document.getElementById('messageInput').value;
-            await fetch('/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message }),
-            });
-            fetchMessages();
-        }
-
-        async function fetchMessages() {
-            const res = await fetch('/messages');
-            const messages = await res.json();
-            document.getElementById('messages').innerHTML = messages.map(msg => `<p>${msg}</p>`).join('');
-        }
-
-        setInterval(fetchMessages, 2000); // Refresh messages every 2 seconds
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send a Message</title>
 </head>
 <body>
-    <h1>Live Messages</h1>
-    <input type="text" id="messageInput" placeholder="Type a message">
-    <button onclick="sendMessage()">Send</button>
-    <div id="messages"></div>
+  <h1>Send a Message</h1>
+  <form id="messageForm">
+    <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
+    <button type="submit">Send</button>
+  </form>
+  <p id="response"></p>
+
+  <script>
+    const form = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const responseText = document.getElementById('response');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const message = messageInput.value.trim();
+      if (!message) {
+        responseText.textContent = 'Please enter a message.';
+        return;
+      }
+
+      try {
+        const response = await fetch('/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: message }),
+        });
+
+        if (response.ok) {
+          responseText.textContent = 'Message sent successfully!';
+          messageInput.value = ''; // Clear the input
+        } else {
+          responseText.textContent = 'Failed to send message.';
+        }
+      } catch (error) {
+        responseText.textContent = 'An error occurred.';
+        console.error(error);
+      }
+    });
+  </script>
 </body>
 </html>
