@@ -25,11 +25,20 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     try {
       // Parse the incoming message as JSON
-      const data = JSON.parse(message);
+      let data;
+      try {
+        data = JSON.parse(message);
+      } catch (parseError) {
+        throw new Error('Invalid JSON format');
+      }
 
-      // Check if the message has the required "text" field
-      if (!data.text) {
-        throw new Error('Invalid message format: "text" field is required');
+      // Validate the message structure
+      if (typeof data !== 'object' || data === null) {
+        throw new Error('Message must be a JSON object');
+      }
+
+      if (!data.text || typeof data.text !== 'string') {
+        throw new Error('Message must contain a "text" field of type string');
       }
 
       // Save the message
@@ -43,8 +52,8 @@ wss.on('connection', (ws) => {
         }
       });
     } catch (error) {
-      console.error('Failed to parse message:', error);
-      ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+      console.error('Error processing message:', error.message);
+      ws.send(JSON.stringify({ type: 'error', message: error.message }));
     }
   });
 
