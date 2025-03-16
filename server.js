@@ -25,13 +25,23 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     try {
       let data;
+      let messageString;
+
+      // Check if the message is binary (Buffer)
+      if (message instanceof Buffer) {
+        console.warn('Received binary message, converting to string:', message);
+        messageString = message.toString('utf-8'); // Convert binary to string
+      } else {
+        messageString = message; // Assume it's already a string
+      }
+
       try {
         // Attempt to parse the incoming message as JSON
-        data = JSON.parse(message);
+        data = JSON.parse(messageString);
       } catch (parseError) {
         // If parsing fails, assume it's plain text and convert it to JSON
-        console.warn('Received plain text message, converting to JSON:', message);
-        data = { text: message };
+        console.warn('Received plain text message, converting to JSON:', messageString);
+        data = { text: messageString };
       }
 
       // Ensure the message is an object
