@@ -24,12 +24,13 @@ wss.on('connection', (ws) => {
   // Handle incoming messages from clients
   ws.on('message', (message) => {
     try {
-      // Attempt to parse the incoming message as JSON
       let data;
       try {
+        // Attempt to parse the incoming message as JSON
         data = JSON.parse(message);
       } catch (parseError) {
-        throw new Error('Invalid JSON format. Please send a valid JSON object.');
+        // If parsing fails, assume it's plain text and convert it to JSON
+        data = { text: message };
       }
 
       // Validate the message structure
