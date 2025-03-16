@@ -35,6 +35,38 @@
       margin-bottom: 20px;
     }
 
+    /* Admin Section Styles */
+    #adminSection {
+      margin-bottom: 20px;
+    }
+
+    #adminSection input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', cursive;
+    }
+
+    #adminSection button {
+      background-color: #333;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      font-family: 'Press Start 2P', cursive;
+      margin: 5px 0;
+    }
+
+    #adminSection button:hover {
+      background-color: #555;
+    }
+
     /* Form Styles */
     #messageForm {
       display: flex;
@@ -132,13 +164,30 @@
 <body>
   <div class="container">
     <h1>Kip Maker</h1>
+
+    <!-- Admin Section -->
+    <div id="adminSection">
+      <input type="text" id="adminUsername" placeholder="Admin Username" required>
+      <input type="password" id="adminPassword" placeholder="Admin Password" required>
+      <button type="button" id="confirmLogin">Log In</button>
+      <button type="button" id="deleteSelected" style="display: none;">Delete Selected Messages</button>
+      <button type="button" id="logOut" style="display: none;">Log Out</button>
+    </div>
+
+    <!-- Message Form -->
     <form id="messageForm">
       <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
       <button type="submit">Send</button>
     </form>
+
+    <!-- Search Bar -->
     <input type="text" id="searchBar" placeholder="Search messages...">
+
+    <!-- Messages List -->
     <h2>Messages</h2>
     <ul id="messageList"></ul>
+
+    <!-- Error Message -->
     <div id="errorMessage" class="error-message"></div>
   </div>
 
@@ -148,6 +197,13 @@
     const messageList = document.getElementById('messageList');
     const errorMessage = document.getElementById('errorMessage');
     const searchBar = document.getElementById('searchBar');
+    const adminUsername = document.getElementById('adminUsername');
+    const adminPassword = document.getElementById('adminPassword');
+    const confirmLoginButton = document.getElementById('confirmLogin');
+    const deleteSelectedButton = document.getElementById('deleteSelected');
+    const logOutButton = document.getElementById('logOut');
+
+    let isAdminLoggedIn = false;
 
     // Connect to the WebSocket server
     const ws = new WebSocket(`wss://${window.location.host}`);
@@ -165,6 +221,8 @@
         if (data.type === 'init') {
           // Display initial messages
           data.messages.forEach((msg, index) => addMessageToList(msg, index));
+          isAdminLoggedIn = data.isAdminLoggedIn;
+          updateAdminUI();
         } else if (data.type === 'message') {
           // Display new message
           addMessageToList(data.message, messages.length);
@@ -227,6 +285,57 @@
       });
     });
 
+    // Handle admin login
+    confirmLoginButton.addEventListener('click', () => {
+      const username = adminUsername.value.trim();
+      const password = adminPassword.value.trim();
+
+      if (!username || !password) {
+        errorMessage.textContent = 'Please enter admin credentials.';
+        return;
+      }
+
+      // Send the login command to the server
+      ws.send(JSON.stringify({
+        type: 'admin',
+        command: 'login',
+        username: username,
+        password: password
+      }));
+
+      // Clear the form
+      adminUsername.value = '';
+      adminPassword.value = '';
+    });
+
+    // Handle delete selected messages
+    deleteSelectedButton.addEventListener('click', () => {
+      // Get the selected message IDs
+      const checkboxes = document.querySelectorAll('#messageList input[type="checkbox"]:checked');
+      const messageIds = Array.from(checkboxes).map((checkbox) => parseInt(checkbox.dataset.index));
+
+      if (messageIds.length === 0) {
+        errorMessage.textContent = 'No messages selected.';
+        return;
+      }
+
+      // Send the delete command to the server
+      ws.send(JSON.stringify({
+        type: 'admin',
+        command: 'deleteMessages',
+        messageIds: messageIds
+      }));
+    });
+
+    // Handle log out
+    logOutButton.addEventListener('click', () => {
+      // Send the logout command to the server
+      ws.send(JSON.stringify({
+        type: 'admin',
+        command: 'logout'
+      }));
+    });
+
     // Helper function to add a message to the list
     function addMessageToList(msg, index) {
       const li = document.createElement('li');
@@ -283,6 +392,25 @@
       if (!ratings || ratings.length === 0) return 'No ratings';
       const sum = ratings.reduce((acc, rating) => acc + rating, 0);
       return (sum / ratings.length).toFixed(2);
+    }
+
+    // Helper function to update the admin UI
+    function updateAdminUI() {
+      if (isAdminLoggedIn) {
+        confirmLoginButton.style.display = 'none';
+        deleteSelectedButton.style.display = 'block';
+        logOutButton.style.display = 'block';
+        document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
+          checkbox.style.display = 'inline-block';
+        });
+      } else {
+        confirmLoginButton.style.display = 'block';
+        deleteSelectedButton.style.display = 'none';
+        logOutButton.style.display = 'none';
+        document.querySelectorAll('#messageList input[type="checkbox"]').forEach((checkbox) => {
+          checkbox.style.display = 'none';
+        });
+      }
     }
   </script>
 </body>
