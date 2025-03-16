@@ -14,9 +14,44 @@ app.use(express.static('public'));
 // Store messages in memory (for simplicity)
 let messages = [];
 
+// Rate limiting to prevent abuse
+const rateLimit = new Map(); // Store IP addresses and their request counts
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 100; // Max requests per IP per window
+
+// Middleware to enforce rate limiting
+app.use((req, res, next) => {
+  const ip = req.ip; // Get the client's IP address
+  const currentTime = Date.now();
+
+  // Initialize rate limit data for the IP if it doesn't exist
+  if (!rateLimit.has(ip)) {
+    rateLimit.set(ip, { count: 1, startTime: currentTime });
+  } else {
+    const ipData = rateLimit.get(ip);
+
+    // Reset the count if the window has expired
+    if (currentTime - ipData.startTime > RATE_LIMIT_WINDOW) {
+      ipData.count = 1;
+      ipData.startTime = currentTime;
+    } else {
+      ipData.count += 1;
+    }
+
+    // Block the request if the limit is exceeded
+    if (ipData.count > RATE_LIMIT_MAX_REQUESTS) {
+      res.status(429).send('Too many requests. Please try again later.');
+      return;
+    }
+  }
+
+  next();
+});
+
 // WebSocket connection handler
-wss.on('connection', (ws) => {
-  console.log('New client connected');
+wss.on('connection', (ws, req) => {
+  const ip = req.socket.remoteAddress; // Get the client's IP address
+  console.log(`New client connected from IP: ${ip}`);
 
   // Send existing messages to the new client
   ws.send(JSON.stringify({ type: 'init', messages }));
@@ -73,7 +108,7 @@ wss.on('connection', (ws) => {
 
   // Handle client disconnection
   ws.on('close', () => {
-    console.log('Client disconnected');
+    console.log(`Client disconnected from IP: ${ip}`);
   });
 });
 
