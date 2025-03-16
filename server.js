@@ -1,9 +1,12 @@
 const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 3000;
+const http = require('http');
+const WebSocket = require('ws');
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+const PORT = process.env.PORT || 3000;
 
 // Serve static files (e.g., index.html)
 app.use(express.static('public')); // Assuming your index.html is in a "public" folder
@@ -11,24 +14,39 @@ app.use(express.static('public')); // Assuming your index.html is in a "public" 
 // Store messages in memory (for simplicity)
 let messages = [];
 
-// Route to receive messages
-app.post('/message', (req, res) => {
-  const { text } = req.body;
-  if (!text) {
-    return res.status(400).send('Message text is required');
-  }
+// WebSocket connection handler
+wss.on('connection', (ws) => {
+  console.log('New client connected');
 
-  // Save the message
-  messages.push({ text, timestamp: new Date() });
-  res.send('Message received!');
-});
+  // Send existing messages to the new client
+  ws.send(JSON.stringify({ type: 'init', messages }));
 
-// Route to display messages
-app.get('/messages', (req, res) => {
-  res.json(messages);
+  // Handle incoming messages from clients
+  ws.on('message', (message) => {
+    const { text } = JSON.parse(message);
+    if (!text) {
+      return;
+    }
+
+    // Save the message
+    const newMessage = { text, timestamp: new Date() };
+    messages.push(newMessage);
+
+    // Broadcast the new message to all connected clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'message', message: newMessage }));
+      }
+    });
+  });
+
+  // Handle client disconnection
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
 });
 
 // Start the server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

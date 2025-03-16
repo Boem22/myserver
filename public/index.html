@@ -3,48 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Send a Message</title>
+  <title>WebSocket Chat</title>
 </head>
 <body>
-  <h1>Send a Message</h1>
+  <h1>WebSocket Chat</h1>
   <form id="messageForm">
     <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
     <button type="submit">Send</button>
   </form>
-  <p id="response"></p>
+  <h2>Messages</h2>
+  <ul id="messageList"></ul>
 
   <script>
     const form = document.getElementById('messageForm');
     const messageInput = document.getElementById('messageInput');
-    const responseText = document.getElementById('response');
+    const messageList = document.getElementById('messageList');
 
-    form.addEventListener('submit', async (e) => {
+    // Connect to the WebSocket server
+    const ws = new WebSocket(`wss://${window.location.host}`);
+
+    // Handle WebSocket connection open
+    ws.onopen = () => {
+      console.log('Connected to WebSocket server');
+    };
+
+    // Handle incoming messages from the server
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'init') {
+        // Display initial messages
+        data.messages.forEach((msg) => addMessageToList(msg));
+      } else if (data.type === 'message') {
+        // Display new message
+        addMessageToList(data.message);
+      }
+    };
+
+    // Handle WebSocket errors
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    // Handle WebSocket connection close
+    ws.onclose = () => {
+      console.log('Disconnected from WebSocket server');
+    };
+
+    // Handle form submission
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
 
       const message = messageInput.value.trim();
       if (!message) {
-        responseText.textContent = 'Please enter a message.';
         return;
       }
 
-      try {
-        const response = await fetch('/message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: message }),
-        });
-
-        if (response.ok) {
-          responseText.textContent = 'Message sent successfully!';
-          messageInput.value = ''; // Clear the input
-        } else {
-          responseText.textContent = 'Failed to send message.';
-        }
-      } catch (error) {
-        responseText.textContent = 'An error occurred.';
-        console.error(error);
-      }
+      // Send the message to the server
+      ws.send(JSON.stringify({ text: message }));
+      messageInput.value = ''; // Clear the input
     });
+
+    // Helper function to add a message to the list
+    function addMessageToList(msg) {
+      const li = document.createElement('li');
+      li.textContent = `${msg.timestamp}: ${msg.text}`;
+      messageList.appendChild(li);
+    }
   </script>
 </body>
 </html>
