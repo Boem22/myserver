@@ -7,6 +7,16 @@
     <style>
         /* Your existing CSS styles */
 
+        /* Ensure scroll bars work */
+        #levels-container, #comments-container {
+            overflow-y: auto;
+            max-height: 200px; /* Adjust height as needed */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
         /* Animation for login messages */
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -81,8 +91,9 @@
         let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
         let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
 
-        // Store deleted message IDs
+        // Store deleted message and level IDs
         const deletedMessages = new Set();
+        const deletedLevels = new Set();
 
         // Admin state (not saved in localStorage)
         let isAdmin = false;
@@ -90,14 +101,14 @@
         // Initialize admin UI
         function initAdminUI() {
             if (isAdmin) {
-                document.querySelectorAll('.delete-btn').forEach(btn => btn.classList.remove('hidden'));
+                document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.remove('hidden'));
                 document.querySelector('#admin-login button').classList.add('hidden');
                 document.querySelector('#admin-login .hidden').classList.remove('hidden');
                 document.getElementById('login-status').classList.remove('hidden');
                 document.getElementById('login-status').classList.add('fade-in');
                 document.getElementById('login-error').classList.add('hidden');
             } else {
-                document.querySelectorAll('.delete-btn').forEach(btn => btn.classList.add('hidden'));
+                document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.add('hidden'));
                 document.querySelector('#admin-login button').classList.remove('hidden');
                 document.querySelector('#admin-login .hidden').classList.add('hidden');
                 document.getElementById('login-status').classList.add('hidden');
@@ -165,6 +176,9 @@
             localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
             renderLevels();
 
+            // Mark the level as deleted
+            deletedLevels.add(levelId);
+
             // Send the deleted level ID via WebSocket
             const message = {
                 type: 'delete_level',
@@ -192,21 +206,23 @@
         // Render levels
         function renderLevels() {
             const container = document.getElementById('levels-container');
-            container.innerHTML = levels.map(level => {
-                const votes = levelVotes[level.id] || { up: 0, down: 0 };
-                const ratioText = `${votes.up} vote(s) up ; ${votes.down} vote(s) down`;
-                return `
-                    <div class="level-card">
-                        <div>${level.name}</div>
-                        <div class="vote-container">
-                            <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
-                            <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
-                            <div class="ratio">${ratioText}</div>
-                            ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+            container.innerHTML = levels
+                .filter(level => !deletedLevels.has(level.id)) // Skip deleted levels
+                .map(level => {
+                    const votes = levelVotes[level.id] || { up: 0, down: 0 };
+                    const ratioText = `${votes.up} vote(s) up ; ${votes.down} vote(s) down`;
+                    return `
+                        <div class="level-card">
+                            <div>${level.name}</div>
+                            <div class="vote-container">
+                                <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
+                                <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
+                                <div class="ratio">${ratioText}</div>
+                                ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+                            </div>
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
         }
 
         // Handle incoming WebSocket messages
@@ -275,6 +291,7 @@
                 renderLevels();
             } else if (message.type === 'delete_level') {
                 // Remove level from all clients' UI
+                deletedLevels.add(message.levelId);
                 levels = levels.filter(level => level.id !== message.levelId);
                 delete levelVotes[message.levelId];
                 localStorage.setItem('levels', JSON.stringify(levels));
