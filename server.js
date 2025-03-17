@@ -13,6 +13,7 @@ const server = http.createServer((req, res) => {
         const filePath = path.join(__dirname, 'index.html');
         fs.readFile(filePath, (err, data) => {
             if (err) {
+                console.error('Error loading index.html:', err);
                 res.writeHead(500, { 'Content-Type': 'text/plain' });
                 res.end('Error loading index.html');
             } else {
