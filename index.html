@@ -313,11 +313,7 @@
         };
 
         // TurboWarp Messaging
-        let isTurboWarpMessageHandled = false; // Flag to prevent double-sending
         window.addEventListener('message', (event) => {
-            if (isTurboWarpMessageHandled) return; // Skip if already handled
-            isTurboWarpMessageHandled = true; // Mark as handled
-
             console.log('Message received from TurboWarp:', event.data); // Log TurboWarp messages
             if (event.origin !== 'https://turbowarp.org') return; // Ensure the message is from TurboWarp
             const message = {
