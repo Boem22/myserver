@@ -16,6 +16,23 @@
         .fade-in {
             animation: fadeIn 0.5s ease-in-out;
         }
+
+        /* Style for delete button */
+        .delete-btn {
+            margin-right: 10px;
+            color: red;
+            cursor: pointer;
+        }
+
+        /* Ensure delete button and text don't overlap */
+        .comment {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -64,20 +81,23 @@
         let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
         let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
 
+        // Store deleted message IDs
+        const deletedMessages = new Set();
+
         // Admin state (not saved in localStorage)
         let isAdmin = false;
 
         // Initialize admin UI
         function initAdminUI() {
             if (isAdmin) {
-                document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.remove('hidden'));
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.classList.remove('hidden'));
                 document.querySelector('#admin-login button').classList.add('hidden');
                 document.querySelector('#admin-login .hidden').classList.remove('hidden');
                 document.getElementById('login-status').classList.remove('hidden');
                 document.getElementById('login-status').classList.add('fade-in');
                 document.getElementById('login-error').classList.add('hidden');
             } else {
-                document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.add('hidden'));
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.classList.add('hidden'));
                 document.querySelector('#admin-login button').classList.remove('hidden');
                 document.querySelector('#admin-login .hidden').classList.add('hidden');
                 document.getElementById('login-status').classList.add('hidden');
@@ -191,11 +211,13 @@
 
         // Handle incoming WebSocket messages
         function handleMessage(message) {
+            if (deletedMessages.has(message.id)) return; // Skip deleted messages
+
             const container = document.getElementById('comments-container');
             const comment = document.createElement('div');
             comment.className = 'comment';
             comment.innerHTML = `
-                ${isAdmin ? '<div class="delete-btn" onclick="deleteComment(this)">🗑️</div>' : ''}
+                ${isAdmin ? '<div class="delete-btn" onclick="deleteComment(this, \'' + message.id + '\')">🗑️</div>' : ''}
                 <div class="content">${message.content}</div>
                 <div class="vote-container">
                     <button onclick="voteComment(this)">👍 0</button>
@@ -206,8 +228,16 @@
         }
 
         // Delete comment function
-        function deleteComment(element) {
+        function deleteComment(element, messageId) {
+            deletedMessages.add(messageId); // Mark the message as deleted
             element.closest('.comment').remove();
+
+            // Send the deleted message ID to the server
+            const message = {
+                type: 'delete_message',
+                messageId: messageId
+            };
+            ws.send(JSON.stringify(message));
         }
 
         // Voting function for comments
@@ -253,6 +283,11 @@
             } else if (message.type === 'comment') {
                 // Handle comments (existing functionality)
                 handleMessage(message);
+            } else if (message.type === 'delete_message') {
+                // Remove deleted message from all clients' UI
+                deletedMessages.add(message.messageId);
+                const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
+                if (comment) comment.remove();
             }
         };
 
@@ -262,7 +297,8 @@
             if (event.origin !== 'https://turbowarp.org') return; // Ensure the message is from TurboWarp
             const message = {
                 type: 'comment',
-                content: event.data
+                content: event.data,
+                id: Date.now().toString() // Unique ID for the message
             };
             ws.send(JSON.stringify(message)); // Send the message to the WebSocket server
         });
