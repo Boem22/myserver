@@ -49,6 +49,19 @@
         // WebSocket connection
         const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
 
+        // Log WebSocket connection status
+        ws.onopen = () => {
+            console.log('WebSocket connection established.');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket connection closed.');
+        };
+
         // Load levels and votes from localStorage
         let levels = JSON.parse(localStorage.getItem('levels')) || [];
         let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
@@ -197,6 +210,7 @@
 
         // WebSocket message handler
         ws.onmessage = (event) => {
+            console.log('WebSocket message received:', event.data); // Log received messages
             const message = JSON.parse(event.data);
 
             if (message.type === 'new_level') {
@@ -221,6 +235,7 @@
 
         // TurboWarp Messaging
         window.addEventListener('message', (event) => {
+            console.log('Message received from TurboWarp:', event.data); // Log TurboWarp messages
             if (event.origin !== 'https://turbowarp.org') return; // Ensure the message is from TurboWarp
             const message = {
                 type: 'comment',
