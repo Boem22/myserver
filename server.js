@@ -37,5 +37,5 @@ wss.on('connection', (ws) => {
 // Start the server
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`WebSocket server is running on ws://localhost:${PORT}`);
+    console.log(`WebSocket server is running on wss://myserver-1jxx.onrender.com`);
 });
