@@ -6,6 +6,16 @@
     <title>Kip Online Maker</title>
     <style>
         /* Your existing CSS styles */
+
+        /* Animation for login messages */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -17,8 +27,8 @@
         <input type="password" id="password" placeholder="Password">
         <button onclick="login()">Login</button>
         <button class="hidden" onclick="logout()">Logout</button>
-        <div id="login-status" class="hidden">You are logged in as Admin.</div>
-        <div id="login-error" class="hidden">Incorrect username or password.</div>
+        <div id="login-status" class="hidden fade-in">You are logged in as Admin.</div>
+        <div id="login-error" class="hidden fade-in">Incorrect username or password.</div>
     </div>
 
     <!-- Game Embed -->
@@ -64,12 +74,14 @@
                 document.querySelector('#admin-login button').classList.add('hidden');
                 document.querySelector('#admin-login .hidden').classList.remove('hidden');
                 document.getElementById('login-status').classList.remove('hidden');
+                document.getElementById('login-status').classList.add('fade-in');
                 document.getElementById('login-error').classList.add('hidden');
             } else {
                 document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.add('hidden'));
                 document.querySelector('#admin-login button').classList.remove('hidden');
                 document.querySelector('#admin-login .hidden').classList.add('hidden');
                 document.getElementById('login-status').classList.add('hidden');
+                document.getElementById('login-error').classList.add('hidden');
             }
         }
 
@@ -82,6 +94,8 @@
                 initAdminUI();
             } else {
                 document.getElementById('login-error').classList.remove('hidden');
+                document.getElementById('login-error').classList.add('fade-in');
+                document.getElementById('login-status').classList.add('hidden');
             }
         }
 
