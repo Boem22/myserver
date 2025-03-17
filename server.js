@@ -27,4 +27,4 @@ wss.on('connection', (ws) => {
     });
 });
 
-console.log(`WebSocket server is running on ws://localhost:${PORT}`);
+console.log(`WebSocket server is running on wss://localhost:${PORT}`);
