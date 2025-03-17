@@ -182,9 +182,10 @@
             comment.className = 'comment';
             comment.innerHTML = `
                 ${isAdmin ? '<div class="delete-btn" onclick="deleteComment(this)">🗑️</div>' : ''}
-                <div>
-                    <div class="date">${new Date().toLocaleString()}</div>
-                    <div class="content">${message.content}</div>
+                <div class="content">${message.content}</div>
+                <div class="vote-container">
+                    <button onclick="voteComment(this)">👍 0</button>
+                    <button onclick="voteComment(this)">👎 0</button>
                 </div>
             `;
             container.prepend(comment);
@@ -193,6 +194,23 @@
         // Delete comment function
         function deleteComment(element) {
             element.closest('.comment').remove();
+        }
+
+        // Voting function for comments
+        function voteComment(button) {
+            const voteContainer = button.parentElement;
+            const upButton = voteContainer.querySelector('button:first-child');
+            const downButton = voteContainer.querySelector('button:last-child');
+
+            if (button === upButton) {
+                const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
+                upButton.textContent = `👍 ${upCount}`;
+            } else if (button === downButton) {
+                const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
+                downButton.textContent = `👎 ${downCount}`;
+            }
+
+            button.disabled = true;
         }
 
         // WebSocket message handler
