@@ -43,7 +43,18 @@ wss.on('connection', (ws) => {
     // Handle incoming messages from clients
     ws.on('message', (message) => {
         console.log('Received:', message.toString());
-        const parsedMessage = JSON.parse(message.toString());
+
+        let parsedMessage;
+        try {
+            // Try to parse the message as JSON
+            parsedMessage = JSON.parse(message.toString());
+        } catch (error) {
+            // If parsing fails, treat it as a plain text message
+            parsedMessage = {
+                type: 'comment',
+                content: message.toString()
+            };
+        }
 
         if (parsedMessage.type === 'comment') {
             // Add the message to history
@@ -56,7 +67,7 @@ wss.on('connection', (ws) => {
         // Broadcast the message to all connected clients
         clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(message.toString());
+                client.send(JSON.stringify(parsedMessage));
             }
         });
     });
