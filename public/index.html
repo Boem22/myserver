@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Kip Levels</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* Add your CSS styles here */
+    </style>
+</head>
+<body>
+    <div id="login-menu">
+        <input type="text" id="adminUsername" placeholder="Admin Username">
+        <input type="password" id="adminPassword" placeholder="Admin Password">
+        <button onclick="loginAdmin()">Login</button>
+    </div>
+
+    <div id="admin-tools">
+        <h2>Online Kip Levels</h2>
+        <div id="adminActions">
+            <button id="logout-button" style="display: none;" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div id="levels"></div>
+
+    <input type="text" id="messageInput" placeholder="Insert a level code">
+    <button onclick="sendMessage()">Submit</button>
+
+    <div id="confirmDeletion" style="display: none;">
+        <button onclick="confirmDelete()">Confirm Deletion</button>
+        <button onclick="cancelDelete()">Cancel</button>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}`);
+        const userId = localStorage.getItem('userId') || generateUserId();
+        let adminLoggedIn = false;
+        let selectedMessageId = null;
+        let messages = [];
+
+        // Generate unique user ID
+        function generateUserId() {
+            const id = `user-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+            localStorage.setItem('userId', id);
+            return id;
+        }
+
+        // Connect to WebSocket
+        ws.onopen = () => console.log('WebSocket connected');
+
+        ws.onmessage = (event) => {
+            console.log('Received:', event.data);
+            const data = JSON.parse(event.data);
+
+            // Handle different message types
+            if (data.type === "messages") {
+                messages = data.messages;
+                renderMessages(messages);
+            } else if (data.type === "newMessage") {
+                messages.push(data.message);
+                renderMessages(messages);
+            } else if (data.type === "updateRating") {
+                const msg = messages.find(m => m.id === data.id);
+                if (msg) {
+                    msg.rating = data.rating;
+                    msg.voters = data.voters;
+                    msg.avgRating = data.avgRating;
+                    renderMessages(messages);
+                }
+            } else if (data.type === "deleteMessage") {
+                messages = messages.filter(m => m.id !== data.id);
+                renderMessages(messages);
+            }
+        };
+
+        // Render messages with voting system and delete option
+        function renderMessages(messages) {
+            const levels = document.getElementById('levels');
+            levels.innerHTML = '';
+            messages.forEach(msg => {
+                const hasVoted = msg.voters[userId] !== undefined;
+                const div = document.createElement('div');
+                div.className = `message`;
+                div.innerHTML = `
+                    <div class="msg-text">${msg.text || "(No text)"}</div>
+                    <small class="msg-date">${msg.date}</small>
+                    <div class="stars" data-id="${msg.id}">
+                        ${createStars(msg.rating, msg.voters, userId)}
+                    </div>
+                    <div class="rating-info">
+                        Avg: ${msg.avgRating || 0} | Your Rating: ${msg.voters[userId] || 0}
+                    </div>
+                    ${adminLoggedIn ? `<span class="delete-box" onclick="selectMessageForDeletion('${msg.id}')">Delete</span>` : ''}
+                `;
+                levels.appendChild(div);
+            });
+
+            // Add click listeners for stars
+            document.querySelectorAll('.stars .star').forEach(star => {
+                star.addEventListener('click', (event) => {
+                    if (!event.target.classList.contains('rated')) {
+                        const id = event.target.parentElement.getAttribute('data-id');
+                        const rating = parseInt(event.target.getAttribute('data-rating'));
+                        rate(id, rating);
+                        updateStarsLocally(id, rating);
+                    }
+                });
+            });
+        }
+
+        // Generate stars for rating
+        function createStars(rating = 0, voters, userId) {
+            return [...Array(5)].map((_, i) => 
+                `<span class="star ${voters[userId] ? 'rated' : ''}" data-rating="${i + 1}">
+                    ${i < rating ? '★' : '☆'}
+                </span>`
+            ).join('');
+        }
+
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            if (!input.value.trim()) return;
+
+            const message = {
+                type: 'newMessage',
+                text: input.value,
+                rating: 0,
+                id: Date.now().toString(),
+                voters: {},
+                avgRating: 0,
+                date: new Date().toLocaleString(),
+            };
+            ws.send(JSON.stringify(message));
+            input.value = '';
+        }
+
+        // Rate a message
+        function rate(id, rating) {
+            console.log(`User ${userId} is rating message ${id} with ${rating} stars.`);
+            ws.send(JSON.stringify({ type: 'updateRating', id, rating, userId }));
+        }
+
+        // Update the displayed stars locally
+        function updateStarsLocally(id, rating) {
+            const starsContainer = document.querySelector(`.stars[data-id="${id}"]`);
+            if (starsContainer) {
+                starsContainer.innerHTML = createStars(rating, {}, userId);
+            }
+        }
+
+        // Log out from admin mode
+        function logout() {
+            adminLoggedIn = false;
+            localStorage.removeItem('adminLoggedIn');
+            document.getElementById('logout-button').style.display = 'none';
+            renderMessages(messages);
+        }
+
+        // Handle admin login
+        function loginAdmin() {
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            if (username === 'Admin' && password === '1622005') {
+                adminLoggedIn = true;
+                localStorage.setItem('adminLoggedIn', 'true');
+                document.getElementById('logout-button').style.display = 'inline-block';
+                renderMessages(messages);
+            } else {
+                alert('Incorrect credentials');
+            }
+        }
+
+        // Select message for deletion
+        function selectMessageForDeletion(id) {
+            selectedMessageId = id;
+            document.getElementById('confirmDeletion').style.display = 'block';
+        }
+
+        // Confirm message deletion
+        function confirmDelete() {
+            ws.send(JSON.stringify({ type: 'deleteMessage', id: selectedMessageId }));
+            selectedMessageId = null;
+            document.getElementById('confirmDeletion').style.display = 'none';
+        }
+
+        // Cancel message deletion
+        function cancelDelete() {
+            selectedMessageId = null;
+            document.getElementById('confirmDeletion').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
