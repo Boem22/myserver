@@ -3,382 +3,275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Kip Levels</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"> <!-- Pixelated font -->
+    <title>Kip Online Maker</title>
     <style>
-        body { 
-            font-family: 'Press Start 2P', cursive; /* NES-style pixelated font */
-            margin: 0;
-            padding: 0;
-            background-color: #dfdfab; /* Retro background color */
-            color: #333; /* Dark text for contrast */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        h2 {
+        #game-container {
+            margin-bottom: 20px;
             text-align: center;
-            color: #8b0000; /* Dark red for retro feel */
-            margin-top: 20px;
-            font-size: 1.5em; /* Smaller font for pixelated look */
-            text-transform: uppercase; /* Uppercase for retro style */
         }
 
-        #admin-tools {
+        #levels-container {
+            height: 200px; /* Fixed height for vertical scrolling */
+            overflow-y: auto; /* Vertical scroll */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        .level-card {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin: 20px;
-        }
-
-        #adminActions {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        #logout-button {
-            cursor: pointer;
-            color: #333;
-            padding: 5px 10px;
-            margin-left: 10px;
-            background-color: #f1f1f1;
-            border: 2px solid #8b0000; /* Dark red border */
-            border-radius: 0; /* No rounded corners for retro look */
-            font-family: 'Press Start 2P', cursive; /* Pixelated font */
-            font-size: 0.8em; /* Smaller font for pixelated look */
-        }
-
-        #login-menu {
-            display: flex;
-            justify-content: flex-end;
-            margin: 20px;
-            gap: 5px;
-        }
-
-        #login-menu input {
-            padding: 5px;
-            border: 2px solid #8b0000; /* Dark red border */
-            border-radius: 0; /* No rounded corners for retro look */
-            width: 120px;
-            font-family: 'Press Start 2P', cursive; /* Pixelated font */
-            font-size: 0.8em; /* Smaller font for pixelated look */
-        }
-
-        #login-menu button {
-            padding: 5px 10px;
-            background-color: #f1f1f1;
-            border: 2px solid #8b0000; /* Dark red border */
-            border-radius: 0; /* No rounded corners for retro look */
-            cursor: pointer;
-            font-family: 'Press Start 2P', cursive; /* Pixelated font */
-            font-size: 0.8em; /* Smaller font for pixelated look */
-        }
-
-        #levels {
-            display: flex;
-            flex-direction: column;
-            margin-top: 20px;
-            padding: 10px;
-            max-height: 400px;
-            overflow-y: auto;
-            background-color: #f5f5dc; /* Beige background for retro feel */
-            border-radius: 0; /* No rounded corners for retro look */
-            border: 2px solid #8b0000; /* Dark red border */
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .message {
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 0; /* No rounded corners for retro look */
-            margin-bottom: 15px;
-            display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            color: #333;
-            border: 2px solid #8b0000; /* Dark red border */
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-            position: relative;
-        }
-
-        .msg-text {
-            flex-grow: 1;
-            font-size: 0.9em; /* Smaller font for pixelated look */
-            margin-right: 10px;
-        }
-
-        .msg-date {
-            font-size: 0.7em; /* Smaller font for pixelated look */
-            color: #666; /* Dark gray for retro feel */
-            margin-top: 5px;
-        }
-
-        .stars {
-            cursor: pointer;
-            color: #ff8c00; /* Dark orange for retro stars */
-            display: inline-block;
-            margin-left: 15px;
-        }
-
-        .star {
-            font-size: 20px;
-            margin-right: 5px;
-        }
-
-        .delete-box {
-            cursor: pointer;
-            color: #8b0000; /* Dark red for delete button */
-            font-size: 20px;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-
-        .rating-info {
-            font-size: 0.7em; /* Smaller font for pixelated look */
-            color: #333;
-            margin-top: 5px;
-        }
-
-        #confirmDeletion {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background-color: #ff4c4c;
             padding: 10px;
-            border-radius: 0; /* No rounded corners for retro look */
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #eee;
+            border-radius: 5px;
+            margin-bottom: 10px;
         }
 
-        #confirmDeletion button {
+        .level-card .vote-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vote-container .ratio {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .delete-level-btn {
+            color: red;
             cursor: pointer;
-            background-color: #fff;
-            color: #ff4c4c;
-            border: 2px solid #ff4c4c;
-            padding: 8px 15px;
-            margin: 0 5px;
-            border-radius: 0; /* No rounded corners for retro look */
-            font-family: 'Press Start 2P', cursive; /* Pixelated font */
-            font-size: 0.8em; /* Smaller font for pixelated look */
+            margin-left: 10px;
         }
 
-        button {
-            padding: 10px 15px;
-            cursor: pointer;
-            margin: 10px 0;
-            background-color: #f1f1f1;
-            border: 2px solid #8b0000; /* Dark red border */
-            border-radius: 0; /* No rounded corners for retro look */
-            font-family: 'Press Start 2P', cursive; /* Pixelated font */
-            font-size: 0.8em; /* Smaller font for pixelated look */
+        #level-input-container {
+            margin-bottom: 20px;
         }
 
-        input[type="text"] {
+        #level-input {
             width: 100%;
             padding: 10px;
-            margin: 10px 0;
-            border-radius: 0; /* No rounded corners for retro look */
-            border: 2px solid #8b0000; /* Dark red border */
-            box-sizing: border-box;
-            font-family: 'Press Start 2P', cursive; /* Pixelated font */
-            font-size: 0.8em; /* Smaller font for pixelated look */
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
         }
 
-        @media (max-width: 600px) {
-            #login-menu {
-                flex-direction: column;
-                align-items: flex-end;
-            }
-            #login-menu input {
-                width: 100%;
-                margin-bottom: 5px;
-            }
+        #comments-container {
+            margin-top: 20px;
+        }
+
+        .comment {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .delete-btn {
+            margin-right: 10px;
+            color: red;
+            cursor: pointer;
+        }
+
+        #admin-login {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #login-status {
+            color: green;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
+    <h1>Kip Online Maker</h1>
 
-    <div id="login-menu">
-        <input type="text" id="adminUsername" placeholder="Admin Username">
-        <input type="password" id="adminPassword" placeholder="Admin Password">
-        <button onclick="loginAdmin()">Login</button>
+    <!-- Admin Login -->
+    <div id="admin-login">
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <button class="hidden" onclick="logout()">Logout</button>
+        <div id="login-status" class="hidden">You are logged in as Admin.</div>
     </div>
 
-    <div id="admin-tools">
-        <h2>Online Kip Levels</h2> <!-- Updated title -->
-        <div id="adminActions">
-            <button id="logout-button" style="display: none;" onclick="logout()">Logout</button>
-        </div>
+    <!-- Game Embed -->
+    <div id="game-container">
+        <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen="" width="720" height="500"></iframe>
     </div>
 
-    <div id="levels"></div>
+    <!-- Level Input -->
+    <div id="level-input-container">
+        <input type="text" id="level-input" placeholder="Enter level code...">
+        <button onclick="addLevel()">Add Level</button>
+    </div>
 
-    <input type="text" id="messageInput" placeholder="Insert a level code"> <!-- Updated placeholder -->
-    <button onclick="sendMessage()">Submit</button>
+    <!-- Levels Container -->
+    <div id="levels-container">
+        <!-- Levels will be populated dynamically -->
+    </div>
 
-    <div id="confirmDeletion" style="display: none;">
-        <button onclick="confirmDelete()">Confirm Deletion</button>
-        <button onclick="cancelDelete()">Cancel</button>
+    <!-- Comments Container -->
+    <div id="comments-container">
+        <!-- Comments will be populated dynamically -->
     </div>
 
     <script>
-        const ws = new WebSocket(`ws://${window.location.host}`);
-        const userId = localStorage.getItem('userId') || generateUserId();
-        let adminLoggedIn = false;
-        let selectedMessageId = null;
-        let messages = [];
+        // WebSocket connection
+        const ws = new WebSocket('ws://localhost:8080');
 
-        // Generate unique user ID
-        function generateUserId() {
-            const id = `user-${Date.now()}-${Math.random().toString(36).substring(2)}`;
-            localStorage.setItem('userId', id);
-            return id;
+        // Load levels and votes from localStorage
+        let levels = JSON.parse(localStorage.getItem('levels')) || [];
+        let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
+        let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
+
+        // Admin state (not saved in localStorage)
+        let isAdmin = false;
+
+        // Initialize admin UI
+        function initAdminUI() {
+            if (isAdmin) {
+                document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.remove('hidden'));
+                document.querySelector('#admin-login button').classList.add('hidden');
+                document.querySelector('#admin-login .hidden').classList.remove('hidden');
+                document.getElementById('login-status').classList.remove('hidden');
+            } else {
+                document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.add('hidden'));
+                document.querySelector('#admin-login button').classList.remove('hidden');
+                document.querySelector('#admin-login .hidden').classList.add('hidden');
+                document.getElementById('login-status').classList.add('hidden');
+            }
         }
 
-        // Connect to WebSocket
-        ws.onopen = () => console.log('WebSocket connected');
-
-        ws.onmessage = (event) => {
-            console.log('Received:', event.data);
-            const data = JSON.parse(event.data);
-
-            // Handle different message types
-            if (data.type === "messages") {
-                messages = data.messages;
-                renderMessages(messages);
-            } else if (data.type === "newMessage") {
-                messages.push(data.message);
-                renderMessages(messages);
-            } else if (data.type === "updateRating") {
-                const msg = messages.find(m => m.id === data.id);
-                if (msg) {
-                    msg.rating = data.rating;
-                    msg.voters = data.voters;
-                    msg.avgRating = data.avgRating;
-                    renderMessages(messages);
-                }
-            } else if (data.type === "deleteMessage") {
-                messages = messages.filter(m => m.id !== data.id);
-                renderMessages(messages);
+        // Login function
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            if (user === 'Admin' && pass === '1622005') {
+                isAdmin = true;
+                initAdminUI();
+            } else {
+                alert('Invalid username or password!');
             }
+        }
+
+        // Logout function
+        function logout() {
+            isAdmin = false;
+            initAdminUI();
+        }
+
+        // Add level function
+        function addLevel() {
+            const levelInput = document.getElementById('level-input');
+            const levelCode = levelInput.value.trim();
+            if (levelCode) {
+                const levelId = Date.now(); // Unique ID for the level
+                levels.push({ id: levelId, name: levelCode });
+                levelVotes[levelId] = { up: 0, down: 0 }; // Initialize votes for the level
+                localStorage.setItem('levels', JSON.stringify(levels));
+                localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+                renderLevels();
+                levelInput.value = ''; // Clear input
+            }
+        }
+
+        // Delete level function
+        function deleteLevel(levelId) {
+            levels = levels.filter(level => level.id !== levelId);
+            delete levelVotes[levelId];
+            localStorage.setItem('levels', JSON.stringify(levels));
+            localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+            renderLevels();
+        }
+
+        // Voting function for levels
+        function voteLevel(levelId, value) {
+            if (userVotes[levelId]) {
+                alert('You have already voted on this level!');
+                return;
+            }
+
+            if (!levelVotes[levelId]) levelVotes[levelId] = { up: 0, down: 0 };
+            levelVotes[levelId][value === 1 ? 'up' : 'down']++;
+            userVotes[levelId] = true; // Mark that the user has voted on this level
+
+            localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+            localStorage.setItem('userVotes', JSON.stringify(userVotes));
+            renderLevels(); // Update the display
+        }
+
+        // Render levels
+        function renderLevels() {
+            const container = document.getElementById('levels-container');
+            container.innerHTML = levels.map(level => {
+                const votes = levelVotes[level.id] || { up: 0, down: 0 };
+                const ratio = votes.down === 0 ? votes.up : (votes.up / votes.down).toFixed(2);
+                return `
+                    <div class="level-card">
+                        <div>${level.name}</div>
+                        <div class="vote-container">
+                            <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
+                            <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
+                            <div class="ratio">${ratio}:1</div>
+                            ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Handle incoming WebSocket messages
+        function handleMessage(message) {
+            const container = document.getElementById('comments-container');
+            const comment = document.createElement('div');
+            comment.className = 'comment';
+            comment.innerHTML = `
+                ${isAdmin ? '<div class="delete-btn" onclick="deleteComment(this)">🗑️</div>' : ''}
+                <div>
+                    <div class="date">${new Date().toLocaleString()}</div>
+                    <div class="content">${message.content}</div>
+                </div>
+            `;
+            container.prepend(comment);
+        }
+
+        // Delete comment function
+        function deleteComment(element) {
+            element.closest('.comment').remove();
+        }
+
+        // WebSocket message handler
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            handleMessage(message);
         };
 
-        // Render messages with voting system and delete option
-        function renderMessages(messages) {
-            const levels = document.getElementById('levels');
-            levels.innerHTML = '';
-            messages.forEach(msg => {
-                const hasVoted = msg.voters[userId] !== undefined;
-                const div = document.createElement('div');
-                div.className = `message`;
-                div.innerHTML = `
-                    <div class="msg-text">${msg.text || "(No text)"}</div>
-                    <small class="msg-date">${msg.date}</small>
-                    <div class="stars" data-id="${msg.id}">
-                        ${createStars(msg.rating, msg.voters, userId)}
-                    </div>
-                    <div class="rating-info">
-                        Avg: ${msg.avgRating || 0} | Your Rating: ${msg.voters[userId] || 0}
-                    </div>
-                    ${adminLoggedIn ? `<span class="delete-box" onclick="selectMessageForDeletion('${msg.id}')">Delete</span>` : ''}
-                `;
-                levels.appendChild(div);
-            });
-
-            // Add click listeners for stars
-            document.querySelectorAll('.stars .star').forEach(star => {
-                star.addEventListener('click', (event) => {
-                    if (!event.target.classList.contains('rated')) {
-                        const id = event.target.parentElement.getAttribute('data-id');
-                        const rating = parseInt(event.target.getAttribute('data-rating'));
-                        rate(id, rating);
-                        updateStarsLocally(id, rating);
-                    }
-                });
-            });
-        }
-
-        // Generate stars for rating
-        function createStars(rating = 0, voters, userId) {
-            return [...Array(5)].map((_, i) => 
-                `<span class="star ${voters[userId] ? 'rated' : ''}" data-rating="${i + 1}">
-                    ${i < rating ? '★' : '☆'}
-                </span>`
-            ).join('');
-        }
-
-        // Send message
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            if (!input.value.trim()) return;
-
-            const message = {
-                type: 'newMessage',
-                text: input.value,
-                rating: 0,
-                id: Date.now().toString(),
-                voters: {},
-                avgRating: 0,
-                date: new Date().toLocaleString(),
-            };
-            ws.send(JSON.stringify(message));
-            input.value = '';
-        }
-
-        // Rate a message
-        function rate(id, rating) {
-            console.log(`User ${userId} is rating message ${id} with ${rating} stars.`);
-            ws.send(JSON.stringify({ type: 'updateRating', id, rating, userId }));
-        }
-
-        // Update the displayed stars locally
-        function updateStarsLocally(id, rating) {
-            const starsContainer = document.querySelector(`.stars[data-id="${id}"]`);
-            if (starsContainer) {
-                starsContainer.innerHTML = createStars(rating, {}, userId);
-            }
-        }
-
-        // Log out from admin mode
-        function logout() {
-            adminLoggedIn = false;
-            localStorage.removeItem('adminLoggedIn');
-            document.getElementById('logout-button').style.display = 'none';
-            renderMessages(messages);
-        }
-
-        // Handle admin login
-        function loginAdmin() {
-            const username = document.getElementById('adminUsername').value;
-            const password = document.getElementById('adminPassword').value;
-            if (username === 'Admin' && password === '1622005') {
-                adminLoggedIn = true;
-                localStorage.setItem('adminLoggedIn', 'true');
-                document.getElementById('logout-button').style.display = 'inline-block';
-                renderMessages(messages);
-            } else {
-                alert('Incorrect credentials');
-            }
-        }
-
-        // Select message for deletion
-        function selectMessageForDeletion(id) {
-            selectedMessageId = id;
-            document.getElementById('confirmDeletion').style.display = 'block';
-        }
-
-        // Confirm message deletion
-        function confirmDelete() {
-            ws.send(JSON.stringify({ type: 'deleteMessage', id: selectedMessageId }));
-            selectedMessageId = null;
-            document.getElementById('confirmDeletion').style.display = 'none';
-        }
-
-        // Cancel message deletion
-        function cancelDelete() {
-            selectedMessageId = null;
-            document.getElementById('confirmDeletion').style.display = 'none';
-        }
+        // Initial render
+        initAdminUI();
+        renderLevels();
     </script>
-
 </body>
 </html>
