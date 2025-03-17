@@ -3,89 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Chat</title>
+    <title>Online Kip Levels</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"> <!-- Pixelated font -->
     <style>
-        body { font-family: Arial, sans-serif; }
-        .message { margin: 10px 0; padding: 10px; border-radius: 5px; background: #f1f1f1; }
-        .admin { background: #ffeb3b; }
-        .stars { color: gold; }
+        body { 
+            font-family: 'Press Start 2P', cursive; /* NES-style pixelated font */
+            margin: 0;
+            padding: 0;
+            background-color: #dfdfab; /* Retro background color */
+            color: #333; /* Dark text for contrast */
+        }
+
+        h2 {
+            text-align: center;
+            color: #8b0000; /* Dark red for retro feel */
+            margin-top: 20px;
+            font-size: 1.5em; /* Smaller font for pixelated look */
+            text-transform: uppercase; /* Uppercase for retro style */
+        }
+
+        #admin-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px;
+        }
+
+        #adminActions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        #logout-button {
+            cursor: pointer;
+            color: #333;
+            padding: 5px 10px;
+            margin-left: 10px;
+            background-color: #f1f1f1;
+            border: 2px solid #8b0000; /* Dark red border */
+            border-radius: 0; /* No rounded corners for retro look */
+            font-family: 'Press Start 2P', cursive; /* Pixelated font */
+            font-size: 0.8em; /* Smaller font for pixelated look */
+        }
+
+        #login-menu {
+            display: flex;
+            justify-content: flex-end;
+            margin: 20px;
+            gap: 5px;
+        }
+
+        #login-menu input {
+            padding: 5px;
+            border: 2px solid #8b0000; /* Dark red border */
+            border-radius: 0; /* No rounded corners for retro look */
+            width: 120px;
+            font-family: 'Press Start 2P', cursive; /* Pixelated font */
+            font-size: 0.8em; /* Smaller font for pixelated look */
+        }
+
+        #login-menu button {
+            padding: 5px 10px;
+            background-color: #f1f1f1;
+            border: 2px solid #8b0000; /* Dark red border */
+            border-radius: 0; /* No rounded corners for retro look */
+            cursor: pointer;
+            font-family: 'Press Start 2P', cursive; /* Pixelated font */
+            font-size: 0.8em; /* Smaller font for pixelated look */
+        }
+
+        #levels {
+            display: flex;
+            flex-direction: column;
+            margin-top: 20px;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #f5f5dc; /* Beige background for retro feel */
+            border-radius: 0; /* No rounded corners for retro look */
+            border: 2px solid #8b0000; /* Dark red border */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .message {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 0; /* No rounded corners for retro look */
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            color: #333;
+            border: 2px solid #8b0000; /* Dark red border */
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .msg-text {
+            flex-grow: 1;
+            font-size: 0.9em; /* Smaller font for pixelated look */
+            margin-right: 10px;
+        }
+
+        .msg-date {
+            font-size: 0.7em; /* Smaller font for pixelated look */
+            color: #666; /* Dark gray for retro feel */
+            margin-top: 5px;
+        }
+
+        .stars {
+            cursor: pointer;
+            color: #ff8c00; /* Dark orange for retro stars */
+            display: inline-block;
+            margin-left: 15px;
+        }
+
+        .star {
+            font-size: 20px;
+            margin-right: 5px;
+        }
+
+        .delete-box {
+            cursor: pointer;
+            color: #8b0000; /* Dark red for delete button */
+            font-size: 20px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .rating-info {
+            font-size: 0.7em; /* Smaller font for pixelated look */
+            color: #333;
+            margin-top: 5px;
+        }
+
+        #confirmDeletion {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: #ff4c4c;
+            padding: 10px;
+            border-radius: 0; /* No rounded corners for retro look */
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        #confirmDeletion button {
+            cursor: pointer;
+            background-color: #fff;
+            color: #ff4c4c;
+            border: 2px solid #ff4c4c;
+            padding: 8px 15px;
+            margin: 0 5px;
+            border-radius: 0; /* No rounded corners for retro look */
+            font-family: 'Press Start 2P', cursive; /* Pixelated font */
+            font-size: 0.8em; /* Smaller font for pixelated look */
+        }
+
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            margin: 10px 0;
+            background-color: #f1f1f1;
+            border: 2px solid #8b0000; /* Dark red border */
+            border-radius: 0; /* No rounded corners for retro look */
+            font-family: 'Press Start 2P', cursive; /* Pixelated font */
+            font-size: 0.8em; /* Smaller font for pixelated look */
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 0; /* No rounded corners for retro look */
+            border: 2px solid #8b0000; /* Dark red border */
+            box-sizing: border-box;
+            font-family: 'Press Start 2P', cursive; /* Pixelated font */
+            font-size: 0.8em; /* Smaller font for pixelated look */
+        }
+
+        @media (max-width: 600px) {
+            #login-menu {
+                flex-direction: column;
+                align-items: flex-end;
+            }
+            #login-menu input {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h2>WebSocket Chat</h2>
 
-    <div>
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        <button onclick="login()">Login</button>
+    <div id="login-menu">
+        <input type="text" id="adminUsername" placeholder="Admin Username">
+        <input type="password" id="adminPassword" placeholder="Admin Password">
+        <button onclick="loginAdmin()">Login</button>
+    </div>
+
+    <div id="admin-tools">
+        <h2>Online Kip Levels</h2> <!-- Updated title -->
+        <div id="adminActions">
+            <button id="logout-button" style="display: none;" onclick="logout()">Logout</button>
+        </div>
     </div>
 
     <div id="levels"></div>
 
-    <input type="text" id="messageInput" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send</button>
+    <input type="text" id="messageInput" placeholder="Insert a level code"> <!-- Updated placeholder -->
+    <button onclick="sendMessage()">Submit</button>
+
+    <div id="confirmDeletion" style="display: none;">
+        <button onclick="confirmDelete()">Confirm Deletion</button>
+        <button onclick="cancelDelete()">Cancel</button>
+    </div>
 
     <script>
         const ws = new WebSocket(`ws://${window.location.host}`);
-        let isAdmin = false;
+        const userId = localStorage.getItem('userId') || generateUserId();
+        let adminLoggedIn = false;
+        let selectedMessageId = null;
+        let messages = [];
 
-        console.log('Attempting to connect to WebSocket server...');
+        // Generate unique user ID
+        function generateUserId() {
+            const id = `user-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+            localStorage.setItem('userId', id);
+            return id;
+        }
 
-        ws.onopen = () => {
-            console.log('WebSocket connection established');
-        };
+        // Connect to WebSocket
+        ws.onopen = () => console.log('WebSocket connected');
 
         ws.onmessage = (event) => {
-            console.log('Received data from server:', event.data);
-            JSON.parse(event.data).forEach(msg => {
+            console.log('Received:', event.data);
+            const data = JSON.parse(event.data);
+
+            // Handle different message types
+            if (data.type === "messages") {
+                messages = data.messages;
+                renderMessages(messages);
+            } else if (data.type === "newMessage") {
+                messages.push(data.message);
+                renderMessages(messages);
+            } else if (data.type === "updateRating") {
+                const msg = messages.find(m => m.id === data.id);
+                if (msg) {
+                    msg.rating = data.rating;
+                    msg.voters = data.voters;
+                    msg.avgRating = data.avgRating;
+                    renderMessages(messages);
+                }
+            } else if (data.type === "deleteMessage") {
+                messages = messages.filter(m => m.id !== data.id);
+                renderMessages(messages);
+            }
+        };
+
+        // Render messages with voting system and delete option
+        function renderMessages(messages) {
+            const levels = document.getElementById('levels');
+            levels.innerHTML = '';
+            messages.forEach(msg => {
+                const hasVoted = msg.voters[userId] !== undefined;
                 const div = document.createElement('div');
-                div.className = `message${msg.admin ? ' admin' : ''}`;
+                div.className = `message`;
                 div.innerHTML = `
-                    ${msg.text} 
-                    <div class="stars">${createStars(msg.rating, msg.id)}</div>
-                    <div class="date">${msg.date}</div>
+                    <div class="msg-text">${msg.text || "(No text)"}</div>
+                    <small class="msg-date">${msg.date}</small>
+                    <div class="stars" data-id="${msg.id}">
+                        ${createStars(msg.rating, msg.voters, userId)}
+                    </div>
+                    <div class="rating-info">
+                        Avg: ${msg.avgRating || 0} | Your Rating: ${msg.voters[userId] || 0}
+                    </div>
+                    ${adminLoggedIn ? `<span class="delete-box" onclick="selectMessageForDeletion('${msg.id}')">Delete</span>` : ''}
                 `;
-                document.getElementById('levels').appendChild(div);
+                levels.appendChild(div);
             });
-        };
 
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
+            // Add click listeners for stars
+            document.querySelectorAll('.stars .star').forEach(star => {
+                star.addEventListener('click', (event) => {
+                    if (!event.target.classList.contains('rated')) {
+                        const id = event.target.parentElement.getAttribute('data-id');
+                        const rating = parseInt(event.target.getAttribute('data-rating'));
+                        rate(id, rating);
+                        updateStarsLocally(id, rating);
+                    }
+                });
+            });
+        }
 
-        ws.onclose = () => {
-            console.log('WebSocket connection closed');
-        };
-
-        function createStars(rating = 0, id) {
+        // Generate stars for rating
+        function createStars(rating = 0, voters, userId) {
             return [...Array(5)].map((_, i) => 
-                `<span class="star" onclick="${isAdmin ? `rate('${id}', ${i + 1})` : ''}">${i < rating ? '★' : '☆'}</span>`
+                `<span class="star ${voters[userId] ? 'rated' : ''}" data-rating="${i + 1}">
+                    ${i < rating ? '★' : '☆'}
+                </span>`
             ).join('');
         }
 
+        // Send message
         function sendMessage() {
             const input = document.getElementById('messageInput');
             if (!input.value.trim()) return;
+
             const message = {
+                type: 'newMessage',
                 text: input.value,
                 rating: 0,
-                admin: isAdmin,
-                id: Date.now()
+                id: Date.now().toString(),
+                voters: {},
+                avgRating: 0,
+                date: new Date().toLocaleString(),
             };
-            console.log('Sending message to server:', message);
             ws.send(JSON.stringify(message));
             input.value = '';
         }
 
-        function login() {
-            isAdmin = document.getElementById('username').value === 'Admin' && 
-                     document.getElementById('password').value === '1622005';
-            console.log('Admin login attempt. Success:', isAdmin);
+        // Rate a message
+        function rate(id, rating) {
+            console.log(`User ${userId} is rating message ${id} with ${rating} stars.`);
+            ws.send(JSON.stringify({ type: 'updateRating', id, rating, userId }));
         }
 
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
+        // Update the displayed stars locally
+        function updateStarsLocally(id, rating) {
+            const starsContainer = document.querySelector(`.stars[data-id="${id}"]`);
+            if (starsContainer) {
+                starsContainer.innerHTML = createStars(rating, {}, userId);
+            }
+        }
+
+        // Log out from admin mode
+        function logout() {
+            adminLoggedIn = false;
+            localStorage.removeItem('adminLoggedIn');
+            document.getElementById('logout-button').style.display = 'none';
+            renderMessages(messages);
+        }
+
+        // Handle admin login
+        function loginAdmin() {
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            if (username === 'Admin' && password === '1622005') {
+                adminLoggedIn = true;
+                localStorage.setItem('adminLoggedIn', 'true');
+                document.getElementById('logout-button').style.display = 'inline-block';
+                renderMessages(messages);
+            } else {
+                alert('Incorrect credentials');
+            }
+        }
+
+        // Select message for deletion
+        function selectMessageForDeletion(id) {
+            selectedMessageId = id;
+            document.getElementById('confirmDeletion').style.display = 'block';
+        }
+
+        // Confirm message deletion
+        function confirmDelete() {
+            ws.send(JSON.stringify({ type: 'deleteMessage', id: selectedMessageId }));
+            selectedMessageId = null;
+            document.getElementById('confirmDeletion').style.display = 'none';
+        }
+
+        // Cancel message deletion
+        function cancelDelete() {
+            selectedMessageId = null;
+            document.getElementById('confirmDeletion').style.display = 'none';
+        }
     </script>
+
 </body>
 </html>

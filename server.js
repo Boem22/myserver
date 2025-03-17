@@ -17,23 +17,71 @@ const messages = [];
 
 wss.on('connection', (ws) => {
     console.log('New client connected');
-    ws.send(JSON.stringify(messages));
+
+    // Send all existing messages to the client
+    ws.send(JSON.stringify({ type: "messages", messages: messages }));
 
     ws.on('message', (data) => {
-        console.log('Received message from client:', data);
+        console.log('Received:', data);
         try {
             const message = JSON.parse(data);
-            message.date = new Date().toLocaleString();
-            messages.push(message);
 
-            // Send the new message to all connected clients
-            wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify([message]));
+            if (message.type === 'newMessage') {
+                // Create a new message object
+                const newMessage = {
+                    id: Date.now().toString(),
+                    text: message.text,
+                    date: new Date().toLocaleString(),
+                    rating: 0,
+                    voters: {},
+                    avgRating: 0, // Initial average rating
+                };
+                messages.push(newMessage);
+
+                // Broadcast the new message to all clients
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({ type: "newMessage", message: newMessage }));
+                    }
+                });
+
+            } else if (message.type === 'updateRating') {
+                // Update the rating of a message
+                const msgToUpdate = messages.find(msg => msg.id === message.id);
+                if (msgToUpdate && !msgToUpdate.voters[message.userId]) {
+                    msgToUpdate.voters[message.userId] = message.rating;
+                    msgToUpdate.rating = calculateAverageRating(msgToUpdate.voters); // Update average rating
+
+                    // Broadcast the updated message to all clients
+                    wss.clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                type: "updateRating",
+                                id: msgToUpdate.id,
+                                rating: msgToUpdate.rating,
+                                voters: msgToUpdate.voters,
+                                avgRating: msgToUpdate.avgRating,
+                            }));
+                        }
+                    });
                 }
-            });
+            } else if (message.type === 'deleteMessage') {
+                // Delete a message
+                const index = messages.findIndex(msg => msg.id === message.id);
+                if (index !== -1) {
+                    messages.splice(index, 1); // Remove the message from the array
+
+                    // Broadcast the deletion to all clients
+                    wss.clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({ type: "deleteMessage", id: message.id }));
+                        }
+                    });
+                }
+            }
+
         } catch (error) {
-            console.error('Error parsing message:', error);
+            console.error('Error:', error);
         }
     });
 
@@ -41,3 +89,11 @@ wss.on('connection', (ws) => {
         console.log('Client disconnected');
     });
 });
+
+// Calculate average rating
+function calculateAverageRating(voters) {
+    const ratings = Object.values(voters);
+    if (ratings.length === 0) return 0;
+    const sum = ratings.reduce((acc, rating) => acc + rating, 0);
+    return (sum / ratings.length).toFixed(1); // Round to 1 decimal place
+}
