@@ -100,6 +100,13 @@
             margin-top: 5px;
         }
 
+        #login-error {
+            color: red;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none; /* Hidden by default */
+        }
+
         .hidden {
             display: none;
         }
@@ -115,6 +122,7 @@
         <button onclick="login()">Login</button>
         <button class="hidden" onclick="logout()">Logout</button>
         <div id="login-status" class="hidden">You are logged in as Admin.</div>
+        <div id="login-error" class="hidden">Incorrect username or password.</div>
     </div>
 
     <!-- Game Embed -->
@@ -157,6 +165,7 @@
                 document.querySelector('#admin-login button').classList.add('hidden');
                 document.querySelector('#admin-login .hidden').classList.remove('hidden');
                 document.getElementById('login-status').classList.remove('hidden');
+                document.getElementById('login-error').classList.add('hidden');
             } else {
                 document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.add('hidden'));
                 document.querySelector('#admin-login button').classList.remove('hidden');
@@ -173,7 +182,7 @@
                 isAdmin = true;
                 initAdminUI();
             } else {
-                alert('Invalid username or password!');
+                document.getElementById('login-error').classList.remove('hidden');
             }
         }
 
@@ -182,6 +191,15 @@
             isAdmin = false;
             initAdminUI();
         }
+
+        // Clear login error when typing
+        document.getElementById('username').addEventListener('input', () => {
+            document.getElementById('login-error').classList.add('hidden');
+        });
+
+        document.getElementById('password').addEventListener('input', () => {
+            document.getElementById('login-error').classList.add('hidden');
+        });
 
         // Add level function
         function addLevel() {
@@ -228,14 +246,14 @@
             const container = document.getElementById('levels-container');
             container.innerHTML = levels.map(level => {
                 const votes = levelVotes[level.id] || { up: 0, down: 0 };
-                const ratio = votes.down === 0 ? votes.up : (votes.up / votes.down).toFixed(2);
+                const ratioText = `${votes.up} vote(s) up ; ${votes.down} vote(s) down`;
                 return `
                     <div class="level-card">
                         <div>${level.name}</div>
                         <div class="vote-container">
                             <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
                             <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
-                            <div class="ratio">${ratio}:1</div>
+                            <div class="ratio">${ratioText}</div>
                             ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
                         </div>
                     </div>
