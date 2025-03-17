@@ -1,421 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kip Maker</title>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <style>
-    /* General Styles */
-    body {
-      font-family: 'Press Start 2P', cursive;
-      background-color: #f4f4f9;
-      color: #333;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-
-    .container {
-      background-color: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      padding: 20px;
-      width: 400px;
-      max-width: 90%;
-      text-align: center;
-    }
-
-    h1 {
-      font-size: 2rem;
-      color: #ff6f61;
-      margin-bottom: 20px;
-    }
-
-    /* Admin Section Styles */
-    #adminSection {
-      margin-bottom: 20px;
-    }
-
-    #adminSection input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 1rem;
-      margin-bottom: 10px;
-      font-family: 'Press Start 2P', cursive;
-    }
-
-    #adminSection button {
-      background-color: #333;
-      color: #fff;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      font-family: 'Press Start 2P', cursive;
-      margin: 5px 0;
-    }
-
-    #adminSection button:hover {
-      background-color: #555;
-    }
-
-    /* Form Styles */
-    #levelForm {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    #levelInput {
-      width: 100%;
-      height: 100px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 1rem;
-      resize: none;
-      font-family: 'Press Start 2P', cursive;
-    }
-
-    #levelForm button {
-      background-color: #ff6f61;
-      color: #fff;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      font-family: 'Press Start 2P', cursive;
-    }
-
-    #levelForm button:hover {
-      background-color: #ff4a3d;
-    }
-
-    /* Search Bar Styles */
-    #searchBar {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 1rem;
-      margin-bottom: 20px;
-      font-family: 'Press Start 2P', cursive;
-    }
-
-    /* Levels List Styles */
-    #levelList {
-      list-style-type: none;
-      padding: 0;
-      margin-top: 20px;
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      padding: 10px;
-      background-color: #f9f9f9;
-    }
-
-    #levelList li {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-      font-size: 0.9rem;
-      color: #555;
-    }
-
-    #levelList li:last-child {
-      border-bottom: none;
-    }
-
-    /* Rating Styles */
-    .rating {
-      display: flex;
-      gap: 5px;
-      margin-top: 10px;
-    }
-
-    .rating span {
-      cursor: pointer;
-      font-size: 1.2rem;
-      color: #ffd700;
-    }
-
-    .rating span:hover {
-      color: #ff6f61;
-    }
-
-    /* Error Message Styles */
-    .error-message {
-      color: #ff4a3d;
-      font-size: 0.9rem;
-      margin-top: 10px;
-    }
-  </style>
+    <title>Retro Level Rater</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Press Start 2P', cursive; background: #1a1a1a; color: #00ff00; }
+        #adminLogin { position: absolute; top: 10px; right: 10px; }
+        .container { max-width: 800px; margin: 60px auto; }
+        #messageInput { width: 70%; padding: 8px; background: #000; color: #0f0; border: 2px solid #0f0; }
+        button { background: #000; color: #0f0; border: 2px solid #0f0; padding: 8px; cursor: pointer; }
+        #levels { height: 500px; overflow-y: auto; border: 2px solid #0f0; padding: 10px; margin: 20px 0; }
+        .message { margin: 10px 0; padding: 10px; border: 1px solid #0f0; }
+        .stars { color: #ff0; margin-top: 5px; }
+        .date { font-size: 0.6em; color: #666; }
+        .admin { border-color: #ff0000; }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Kip Maker</h1>
-
-    <!-- Admin Section -->
-    <div id="adminSection">
-      <input type="text" id="adminUsername" placeholder="Admin Username" required>
-      <input type="password" id="adminPassword" placeholder="Admin Password" required>
-      <button type="button" id="confirmLogin">Log In</button>
-      <button type="button" id="deleteSelected" style="display: none;">Delete Selected Levels</button>
-      <button type="button" id="logOut" style="display: none;">Log Out</button>
+    <div id="adminLogin">
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+    <div class="container">
+        <input id="messageInput" placeholder="Enter level name...">
+        <button onclick="sendMessage()">Submit</button>
+        <div id="levels"></div>
     </div>
 
-    <!-- Level Form -->
-    <form id="levelForm">
-      <textarea id="levelInput" placeholder="Type your level code here..." required></textarea>
-      <button type="submit">Upload Level</button>
-    </form>
+    <script>
+        const ws = new WebSocket(`wss://${window.location.host}`);
+        let isAdmin = false;
 
-    <!-- Search Bar -->
-    <input type="text" id="searchBar" placeholder="Search levels...">
+        ws.onmessage = (event) => {
+            JSON.parse(event.data).forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message${msg.admin ? ' admin' : ''}`;
+                div.innerHTML = `
+                    ${msg.text} 
+                    <div class="stars">${createStars(msg.rating)}</div>
+                    <div class="date">${msg.date}</div>
+                `;
+                document.getElementById('levels').appendChild(div);
+            });
+        };
 
-    <!-- Levels List -->
-    <h2>Online Levels</h2>
-    <ul id="levelList"></ul>
-
-    <!-- Error Message -->
-    <div id="errorMessage" class="error-message"></div>
-  </div>
-
-  <script>
-    const form = document.getElementById('levelForm');
-    const levelInput = document.getElementById('levelInput');
-    const levelList = document.getElementById('levelList');
-    const errorMessage = document.getElementById('errorMessage');
-    const searchBar = document.getElementById('searchBar');
-    const adminUsername = document.getElementById('adminUsername');
-    const adminPassword = document.getElementById('adminPassword');
-    const confirmLoginButton = document.getElementById('confirmLogin');
-    const deleteSelectedButton = document.getElementById('deleteSelected');
-    const logOutButton = document.getElementById('logOut');
-
-    let isAdminLoggedIn = false;
-
-    // Connect to the WebSocket server
-    const ws = new WebSocket(`wss://${window.location.host}`);
-
-    // Handle WebSocket connection open
-    ws.onopen = () => {
-      console.log('Connected to WebSocket server');
-      // Request initial levels from the server
-      ws.send(JSON.stringify({ type: 'init', text: '' })); // Add a default 'text' field
-    };
-
-    // Handle incoming messages from the server
-    ws.onmessage = (event) => {
-      console.log('Raw message from server:', event.data); // Debugging: Log raw message
-
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'init') {
-          // Display initial levels
-          levelList.innerHTML = ''; // Clear the list
-          data.levels.forEach((level, index) => addLevelToList(level, index));
-          isAdminLoggedIn = data.isAdminLoggedIn;
-          updateAdminUI();
-        } else if (data.type === 'level') {
-          // Display new level
-          addLevelToList(data.level, levelList.children.length);
-        } else if (data.type === 'update') {
-          // Update existing level
-          updateLevel(data.level, data.levelId);
-        } else if (data.type === 'error') {
-          // Display error message
-          console.error('Server error:', data.message);
-          errorMessage.textContent = `Server error: ${data.message}`;
+        function createStars(rating = 0) {
+            return [...Array(5)].map((_, i) => 
+                `<span class="star" onclick="${isAdmin ? `rate('${msg.id}', ${i + 1})` : ''}">${i < rating ? '★' : '☆'}</span>`
+            ).join('');
         }
-      } catch (error) {
-        console.error('Failed to parse server message:', error);
-        errorMessage.textContent = 'Failed to parse server message. Check the console for details.';
-      }
-    };
 
-    // Handle WebSocket errors
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      errorMessage.textContent = 'WebSocket error: Check the console for details.';
-    };
-
-    // Handle WebSocket connection close
-    ws.onclose = () => {
-      console.log('Disconnected from WebSocket server');
-      errorMessage.textContent = 'Disconnected from WebSocket server.';
-    };
-
-    // Handle form submission
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      const level = levelInput.value.trim();
-      if (!level) {
-        errorMessage.textContent = 'Please enter a level code.';
-        return;
-      }
-
-      // Clear previous error messages
-      errorMessage.textContent = '';
-
-      // Send the level to the server in JSON format
-      ws.send(JSON.stringify({ type: 'level', text: level }));
-      levelInput.value = ''; // Clear the input
-    });
-
-    // Handle search bar input
-    searchBar.addEventListener('input', () => {
-      const searchTerm = searchBar.value.toLowerCase();
-      const levels = Array.from(levelList.children);
-
-      levels.forEach((level) => {
-        const text = level.textContent.toLowerCase();
-        if (text.includes(searchTerm)) {
-          level.style.display = 'block';
-        } else {
-          level.style.display = 'none';
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            ws.send(JSON.stringify({
+                text: input.value,
+                rating: 0,
+                admin: isAdmin,
+                id: Date.now()
+            }));
+            input.value = '';
         }
-      });
-    });
 
-    // Handle admin login
-    confirmLoginButton.addEventListener('click', () => {
-      const username = adminUsername.value.trim();
-      const password = adminPassword.value.trim();
+        function login() {
+            isAdmin = document.getElementById('username').value === 'Admin' && 
+                     document.getElementById('password').value === '1622005';
+        }
 
-      if (!username || !password) {
-        errorMessage.textContent = 'Please enter admin credentials.';
-        return;
-      }
-
-      // Send the login command to the server
-      ws.send(JSON.stringify({
-        type: 'admin',
-        command: 'login',
-        username: username,
-        password: password
-      }));
-
-      // Clear the form
-      adminUsername.value = '';
-      adminPassword.value = '';
-    });
-
-    // Handle delete selected levels
-    deleteSelectedButton.addEventListener('click', () => {
-      // Get the selected level IDs
-      const checkboxes = document.querySelectorAll('#levelList input[type="checkbox"]:checked');
-      const levelIds = Array.from(checkboxes).map((checkbox) => parseInt(checkbox.dataset.index));
-
-      if (levelIds.length === 0) {
-        errorMessage.textContent = 'No levels selected.';
-        return;
-      }
-
-      // Send the delete command to the server
-      ws.send(JSON.stringify({
-        type: 'admin',
-        command: 'deleteLevels',
-        levelIds: levelIds
-      }));
-    });
-
-    // Handle log out
-    logOutButton.addEventListener('click', () => {
-      // Send the logout command to the server
-      ws.send(JSON.stringify({
-        type: 'admin',
-        command: 'logout'
-      }));
-    });
-
-    // Helper function to add a level to the list
-    function addLevelToList(level, index) {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <div>${level.timestamp}: ${level.text}</div>
-        <div class="rating">
-          ${[1, 2, 3, 4, 5].map((star) => `
-            <span data-index="${index}" data-rating="${star}">★</span>
-          `).join('')}
-        </div>
-        <div>Rating: ${calculateAverageRating(level.ratings)} (${level.ratings ? level.ratings.length : 0} votes)</div>
-      `;
-      levelList.appendChild(li);
-      // Scroll to the bottom of the level list
-      levelList.scrollTop = levelList.scrollHeight;
-
-      // Add event listeners to rating stars
-      li.querySelectorAll('.rating span').forEach((star) => {
-        star.addEventListener('click', () => {
-          const levelId = star.dataset.index;
-          const rating = star.dataset.rating;
-          ws.send(JSON.stringify({ type: 'rate', levelId, rating: parseInt(rating) }));
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
         });
-      });
-    }
-
-    // Helper function to update a level
-    function updateLevel(level, levelId) {
-      const li = levelList.children[levelId];
-      if (li) {
-        li.innerHTML = `
-          <div>${level.timestamp}: ${level.text}</div>
-          <div class="rating">
-            ${[1, 2, 3, 4, 5].map((star) => `
-              <span data-index="${levelId}" data-rating="${star}">★</span>
-            `).join('')}
-          </div>
-          <div>Rating: ${calculateAverageRating(level.ratings)} (${level.ratings ? level.ratings.length : 0} votes)</div>
-        `;
-
-        // Add event listeners to rating stars
-        li.querySelectorAll('.rating span').forEach((star) => {
-          star.addEventListener('click', () => {
-            const levelId = star.dataset.index;
-            const rating = star.dataset.rating;
-            ws.send(JSON.stringify({ type: 'rate', levelId, rating: parseInt(rating) }));
-          });
-        });
-      }
-    }
-
-    // Helper function to calculate average rating
-    function calculateAverageRating(ratings) {
-      if (!ratings || ratings.length === 0) return 'No ratings';
-      const sum = ratings.reduce((acc, rating) => acc + rating, 0);
-      return (sum / ratings.length).toFixed(2);
-    }
-
-    // Helper function to update the admin UI
-    function updateAdminUI() {
-      if (isAdminLoggedIn) {
-        confirmLoginButton.style.display = 'none';
-        deleteSelectedButton.style.display = 'block';
-        logOutButton.style.display = 'block';
-        document.querySelectorAll('#levelList input[type="checkbox"]').forEach((checkbox) => {
-          checkbox.style.display = 'inline-block';
-        });
-      } else {
-        confirmLoginButton.style.display = 'block';
-        deleteSelectedButton.style.display = 'none';
-        logOutButton.style.display = 'none';
-        document.querySelectorAll('#levelList input[type="checkbox"]').forEach((checkbox) => {
-          checkbox.style.display = 'none';
-        });
-      }
-    }
-  </script>
-</body
+    </script>
+</body>
+</html>
