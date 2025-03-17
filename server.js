@@ -30,15 +30,21 @@ const server = http.createServer((req, res) => {
 // Create a WebSocket server by passing the HTTP server
 const wss = new WebSocket.Server({ server });
 
+// Store all connected clients
+const clients = new Set();
+
 wss.on('connection', (ws) => {
     console.log('New client connected');
+
+    // Add the new client to the set of connected clients
+    clients.add(ws);
 
     // Handle incoming messages from clients
     ws.on('message', (message) => {
         console.log('Received:', message.toString());
 
         // Broadcast the message to all connected clients
-        wss.clients.forEach(client => {
+        clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(message.toString());
             }
@@ -48,6 +54,8 @@ wss.on('connection', (ws) => {
     // Handle client disconnection
     ws.on('close', () => {
         console.log('Client disconnected');
+        // Remove the client from the set of connected clients
+        clients.delete(ws);
     });
 });
 
