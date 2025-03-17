@@ -213,11 +213,21 @@
                 localStorage.setItem('levels', JSON.stringify(levels));
                 localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
                 renderLevels();
+            } else if (message.type === 'comment') {
+                // Handle comments (existing functionality)
+                handleMessage(message);
             }
-
-            // Handle comments (existing functionality)
-            handleMessage(message);
         };
+
+        // TurboWarp Messaging
+        window.addEventListener('message', (event) => {
+            if (event.origin !== 'https://turbowarp.org') return; // Ensure the message is from TurboWarp
+            const message = {
+                type: 'comment',
+                content: event.data
+            };
+            ws.send(JSON.stringify(message)); // Send the message to the WebSocket server
+        });
 
         // Initial render
         initAdminUI();
