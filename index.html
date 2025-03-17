@@ -86,6 +86,9 @@
         // WebSocket connection
         const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
 
+        // Track received message IDs to prevent duplicates
+        const receivedMessageIds = new Set();
+
         // Load levels and votes from localStorage
         let levels = JSON.parse(localStorage.getItem('levels')) || [];
         let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
@@ -228,7 +231,9 @@
 
         // Handle incoming WebSocket messages
         function handleMessage(message) {
-            if (deletedMessages.has(message.id)) return; // Skip deleted messages
+            // Skip if message was deleted or already processed
+            if (deletedMessages.has(message.id) || receivedMessageIds.has(message.id)) return;
+            receivedMessageIds.add(message.id);
 
             const container = document.getElementById('comments-container');
             const comment = document.createElement('div');
@@ -283,14 +288,18 @@
                 // Initialize levels and messages from history
                 levels = message.levels;
                 renderLevels();
-                message.messages.forEach(handleMessage);
+                message.messages.forEach(msg => {
+                    if (!receivedMessageIds.has(msg.id)) handleMessage(msg);
+                });
             } else if (message.type === 'new_level') {
                 // Add level to all clients' UI
-                levels.push(message.level);
-                levelVotes[message.level.id] = { up: 0, down: 0 };
-                localStorage.setItem('levels', JSON.stringify(levels));
-                localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
-                renderLevels();
+                if (!levels.some(level => level.id === message.level.id)) {
+                    levels.push(message.level);
+                    levelVotes[message.level.id] = { up: 0, down: 0 };
+                    localStorage.setItem('levels', JSON.stringify(levels));
+                    localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+                    renderLevels();
+                }
             } else if (message.type === 'delete_level') {
                 // Remove level from all clients' UI
                 deletedLevels.add(message.levelId);
@@ -301,7 +310,7 @@
                 localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
                 renderLevels();
             } else if (message.type === 'comment') {
-                // Handle comments (existing functionality)
+                // Handle comments with duplicate check
                 handleMessage(message);
             } else if (message.type === 'delete_message') {
                 // Remove deleted message from all clients' UI
@@ -314,14 +323,14 @@
 
         // TurboWarp Messaging
         window.addEventListener('message', (event) => {
-            console.log('Message received from TurboWarp:', event.data); // Log TurboWarp messages
-            if (event.origin !== 'https://turbowarp.org') return; // Ensure the message is from TurboWarp
+            console.log('Message received from TurboWarp:', event.data);
+            if (event.origin !== 'https://turbowarp.org') return;
             const message = {
                 type: 'comment',
                 content: event.data,
-                id: Date.now().toString() // Unique ID for the message
+                id: Date.now().toString()
             };
-            ws.send(JSON.stringify(message)); // Send the message to the WebSocket server
+            ws.send(JSON.stringify(message)); // Only send via WebSocket
         });
 
         // Initial render
