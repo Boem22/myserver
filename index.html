@@ -92,8 +92,8 @@
         let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
 
         // Store deleted message and level IDs
-        const deletedMessages = new Set();
-        const deletedLevels = new Set();
+        const deletedMessages = JSON.parse(localStorage.getItem('deletedMessages')) || new Set();
+        const deletedLevels = JSON.parse(localStorage.getItem('deletedLevels')) || new Set();
 
         // Admin state (not saved in localStorage)
         let isAdmin = false;
@@ -178,6 +178,7 @@
 
             // Mark the level as deleted
             deletedLevels.add(levelId);
+            localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
 
             // Send the deleted level ID via WebSocket
             const message = {
@@ -246,6 +247,7 @@
         // Delete comment function
         function deleteComment(element, messageId) {
             deletedMessages.add(messageId); // Mark the message as deleted
+            localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
             element.closest('.comment').remove();
 
             // Send the deleted message ID to the server
@@ -292,6 +294,7 @@
             } else if (message.type === 'delete_level') {
                 // Remove level from all clients' UI
                 deletedLevels.add(message.levelId);
+                localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
                 levels = levels.filter(level => level.id !== message.levelId);
                 delete levelVotes[message.levelId];
                 localStorage.setItem('levels', JSON.stringify(levels));
@@ -303,6 +306,7 @@
             } else if (message.type === 'delete_message') {
                 // Remove deleted message from all clients' UI
                 deletedMessages.add(message.messageId);
+                localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
                 const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
                 if (comment) comment.remove();
             }
