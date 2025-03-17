@@ -26,28 +26,49 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server });
 
+// Store all connected clients
 const clients = new Set();
+
+// Store messages and levels
+const messageHistory = [];
+const levelHistory = [];
 
 wss.on('connection', (ws) => {
     console.log('New client connected');
     clients.add(ws);
 
+    // Send existing messages and levels to the new client
+    ws.send(JSON.stringify({ type: 'init', messages: messageHistory, levels: levelHistory }));
+
+    // Handle incoming messages from clients
     ws.on('message', (message) => {
         console.log('Received:', message.toString());
+        const parsedMessage = JSON.parse(message.toString());
 
+        if (parsedMessage.type === 'comment') {
+            // Add the message to history
+            messageHistory.push(parsedMessage);
+        } else if (parsedMessage.type === 'new_level') {
+            // Add the level to history
+            levelHistory.push(parsedMessage.level);
+        }
+
+        // Broadcast the message to all connected clients
         clients.forEach(client => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
+            if (client.readyState === WebSocket.OPEN) {
                 client.send(message.toString());
             }
         });
     });
 
+    // Handle client disconnection
     ws.on('close', () => {
         console.log('Client disconnected');
         clients.delete(ws);
     });
 });
 
+// Start the server
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
