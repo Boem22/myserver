@@ -65,11 +65,14 @@ wss.on('connection', (ws) => {
                 levelHistory.push(parsedMessage.level);
             }
         } else if (parsedMessage.type === 'delete_message') {
-            // Remove the message from history (if it exists)
-            messageHistory = messageHistory.filter(msg => msg.id !== parsedMessage.messageId);
+            // Remove the message from history.
+            // We convert both ids to strings to match TurboWarp messages with numeric ids.
+            messageHistory = messageHistory.filter(
+                msg => String(msg.id) !== String(parsedMessage.messageId)
+            );
         } else if (parsedMessage.type === 'delete_level') {
             // Remove the level from history (if it exists)
-            levelHistory = levelHistory.filter(lvl => lvl.id !== parsedMessage.levelId);
+            levelHistory = levelHistory.filter(lvl => String(lvl.id) !== String(parsedMessage.levelId));
         }
 
         // Broadcast the message to all connected clients.
