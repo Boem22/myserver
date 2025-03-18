@@ -5,95 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    /* Import the Pixeled font */
-    @font-face {
-      font-family: 'Pixeled';
-      src: url('Pixeled.ttf') format('truetype');
-    }
-
-    /* Apply the font to the entire page */
-    body {
-      font-family: 'Pixeled', sans-serif;
-      background-color: #1e1e1e;
-      color: #fef4b8;
-      margin: 0;
-      padding: 20px;
-    }
-
-    h1 {
-      font-size: 2.5rem;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    #levels-container,
-    #comments-container {
-      overflow-y: auto;
-      max-height: 200px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 10px;
-      margin-bottom: 20px;
-      background-color: #2d2d2d;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .fade-in {
-      animation: fadeIn 0.5s ease-in-out;
-    }
-
-    .delete-btn {
-      margin-left: 10px;
-      color: red;
-      cursor: pointer;
-    }
-
-    .comment {
-      display: flex;
-      flex-direction: column;
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #3a3a3a;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .timestamp {
-      font-size: 0.8em;
-      color: #888;
-      margin-left: 10px;
-    }
-
-    input, button {
-      font-family: 'Pixeled', sans-serif;
-      padding: 5px;
-      margin: 5px 0;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #555;
-    }
-
-    iframe {
-      border: 2px solid #666;
-      border-radius: 5px;
-    }
+    /* Your existing CSS styles */
   </style>
 </head>
 <body>
@@ -105,8 +17,6 @@
     <input type="password" id="password" placeholder="Password" />
     <button id="login-btn" onclick="login()">Login</button>
     <button id="logout-btn" class="hidden" onclick="logout()">Logout</button>
-    <div id="login-status" class="hidden fade-in">You are now logged in as admin.</div>
-    <div id="login-error" class="hidden fade-in">Wrong username or password, try again</div>
   </div>
 
   <!-- Game Embed -->
@@ -141,21 +51,15 @@
     function initAdminUI() {
       const elements = {
         loginBtn: document.getElementById('login-btn'),
-        logoutBtn: document.getElementById('logout-btn'),
-        status: document.getElementById('login-status'),
-        error: document.getElementById('login-error')
+        logoutBtn: document.getElementById('logout-btn')
       };
 
       if (isAdmin) {
         elements.loginBtn.classList.add('hidden');
         elements.logoutBtn.classList.remove('hidden');
-        elements.status.classList.remove('hidden');
-        elements.error.classList.add('hidden');
       } else {
         elements.loginBtn.classList.remove('hidden');
         elements.logoutBtn.classList.add('hidden');
-        elements.status.classList.add('hidden');
-        elements.error.classList.add('hidden');
       }
 
       // Update delete buttons for all messages
@@ -185,12 +89,7 @@
       const pass = document.getElementById('password').value;
       if (user === 'Admin' && pass === '1622005') {
         isAdmin = true;
-        document.getElementById('login-status').classList.remove('hidden');
-        document.getElementById('login-error').classList.add('hidden');
         initAdminUI();
-      } else {
-        document.getElementById('login-error').classList.remove('hidden');
-        document.getElementById('login-status').classList.add('hidden');
       }
     }
 
@@ -198,13 +97,6 @@
       isAdmin = false;
       initAdminUI();
     }
-
-    document.getElementById('username').addEventListener('input', () => {
-      document.getElementById('login-error').classList.add('hidden');
-    });
-    document.getElementById('password').addEventListener('input', () => {
-      document.getElementById('login-error').classList.add('hidden');
-    });
 
     function addLevel() {
       const levelInput = document.getElementById('level-input');
