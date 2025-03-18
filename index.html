@@ -5,7 +5,166 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    /* Your existing CSS styles */
+    /* Import the Pixeled font */
+    @font-face {
+      font-family: 'Pixeled';
+      src: url('Pixeled.ttf') format('truetype');
+    }
+
+    /* Apply the font to the entire page */
+    body {
+      font-family: 'Pixeled', sans-serif;
+      background-color: #1e1e1e;
+      color: #fef4b8;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* Admin Login */
+    #admin-login {
+      margin-bottom: 20px;
+    }
+
+    #admin-login input,
+    #admin-login button {
+      font-family: 'Pixeled', sans-serif;
+      padding: 5px;
+      margin: 5px 0;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
+    }
+
+    #admin-login button {
+      cursor: pointer;
+    }
+
+    #admin-login button:hover {
+      background-color: #555;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Game Embed */
+    #game-container {
+      margin-bottom: 20px;
+    }
+
+    iframe {
+      border: 2px solid #666;
+      border-radius: 5px;
+    }
+
+    /* Level Input */
+    #level-input-container {
+      margin-bottom: 20px;
+    }
+
+    #level-input-container input,
+    #level-input-container button {
+      font-family: 'Pixeled', sans-serif;
+      padding: 5px;
+      margin: 5px 0;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
+    }
+
+    #level-input-container button {
+      cursor: pointer;
+    }
+
+    #level-input-container button:hover {
+      background-color: #555;
+    }
+
+    /* Levels and Comments Containers */
+    #levels-container,
+    #comments-container {
+      overflow-y: auto; /* Enable vertical scrolling */
+      max-height: 200px; /* Set a fixed height for the containers */
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 20px;
+      background-color: #2d2d2d;
+    }
+
+    /* Custom scrollbar styling */
+    #levels-container::-webkit-scrollbar,
+    #comments-container::-webkit-scrollbar {
+      width: 8px; /* Width of the scrollbar */
+    }
+
+    #levels-container::-webkit-scrollbar-track,
+    #comments-container::-webkit-scrollbar-track {
+      background: #1e1e1e; /* Track color */
+      border-radius: 5px;
+    }
+
+    #levels-container::-webkit-scrollbar-thumb,
+    #comments-container::-webkit-scrollbar-thumb {
+      background: #888; /* Thumb color */
+      border-radius: 5px;
+    }
+
+    #levels-container::-webkit-scrollbar-thumb:hover,
+    #comments-container::-webkit-scrollbar-thumb:hover {
+      background: #555; /* Thumb color on hover */
+    }
+
+    /* Level and Comment Cards */
+    .level-card,
+    .comment {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background-color: #3a3a3a;
+    }
+
+    .vote-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .vote-container button {
+      font-family: 'Pixeled', sans-serif;
+      padding: 5px;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .vote-container button:hover {
+      background-color: #555;
+    }
+
+    .delete-btn,
+    .delete-level-btn {
+      margin-left: 10px;
+      color: red;
+      cursor: pointer;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #888;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
@@ -37,53 +196,40 @@
   <div id="comments-container"></div>
 
   <script>
-    console.log('Site opened by a user.');
     const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
-
-    // Persistent storage
-    let levels = JSON.parse(localStorage.getItem('levels')) || [];
-    let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
-    let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
-    let deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
-    let deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
     let isAdmin = false;
 
+    // Load data from localStorage
+    const levels = JSON.parse(localStorage.getItem('levels')) || [];
+    const levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
+    const userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
+    const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
+    const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
+
+    // Initialize admin UI
     function initAdminUI() {
-      const elements = {
-        loginBtn: document.getElementById('login-btn'),
-        logoutBtn: document.getElementById('logout-btn')
-      };
-
-      if (isAdmin) {
-        elements.loginBtn.classList.add('hidden');
-        elements.logoutBtn.classList.remove('hidden');
-      } else {
-        elements.loginBtn.classList.remove('hidden');
-        elements.logoutBtn.classList.add('hidden');
-      }
-
-      // Update delete buttons for all messages
+      document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
+      document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
       updateDeleteButtons();
     }
 
+    // Update delete buttons for all messages
     function updateDeleteButtons() {
-      const comments = document.querySelectorAll('.comment');
-      comments.forEach(comment => {
+      document.querySelectorAll('.comment').forEach(comment => {
         const deleteBtn = comment.querySelector('.delete-btn');
-        if (isAdmin) {
-          if (!deleteBtn) {
-            const deleteButton = document.createElement('div');
-            deleteButton.className = 'delete-btn';
-            deleteButton.textContent = '🗑️';
-            deleteButton.onclick = () => deleteComment(deleteButton, comment.getAttribute('data-id'));
-            comment.querySelector('div').appendChild(deleteButton);
-          }
-        } else {
-          if (deleteBtn) deleteBtn.remove();
+        if (isAdmin && !deleteBtn) {
+          const deleteButton = document.createElement('div');
+          deleteButton.className = 'delete-btn';
+          deleteButton.textContent = '🗑️';
+          deleteButton.onclick = () => deleteComment(deleteButton, comment.getAttribute('data-id'));
+          comment.querySelector('div').appendChild(deleteButton);
+        } else if (!isAdmin && deleteBtn) {
+          deleteBtn.remove();
         }
       });
     }
 
+    // Login function
     function login() {
       const user = document.getElementById('username').value;
       const pass = document.getElementById('password').value;
@@ -93,11 +239,13 @@
       }
     }
 
+    // Logout function
     function logout() {
       isAdmin = false;
       initAdminUI();
     }
 
+    // Add a new level
     function addLevel() {
       const levelInput = document.getElementById('level-input');
       const levelCode = levelInput.value.trim();
@@ -105,8 +253,8 @@
         const levelId = Date.now();
         levels.push({ id: levelId, name: levelCode });
         levelVotes[levelId] = { up: 0, down: 0 };
-        localStorage.setItem('levels', JSON.stringify(levels));
-        localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+        saveData('levels', levels);
+        saveData('levelVotes', levelVotes);
         renderLevels();
         levelInput.value = '';
 
@@ -117,38 +265,33 @@
       }
     }
 
+    // Delete a level
     function deleteLevel(levelId) {
-      levels = levels.filter(level => level.id !== levelId);
+      levels.splice(levels.findIndex(l => l.id === levelId), 1);
       delete levelVotes[levelId];
-      localStorage.setItem('levels', JSON.stringify(levels));
-      localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+      saveData('levels', levels);
+      saveData('levelVotes', levelVotes);
       renderLevels();
 
       deletedLevels.add(levelId);
-      localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
+      saveData('deletedLevels', [...deletedLevels]);
 
-      ws.send(JSON.stringify({
-        type: 'delete_level',
-        levelId: levelId
-      }));
+      ws.send(JSON.stringify({ type: 'delete_level', levelId }));
     }
 
+    // Vote on a level
     function voteLevel(levelId, value) {
       if (userVotes[levelId]) return alert('You have already voted!');
       levelVotes[levelId][value === 1 ? 'up' : 'down']++;
       userVotes[levelId] = true;
-      localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
-      localStorage.setItem('userVotes', JSON.stringify(userVotes));
+      saveData('levelVotes', levelVotes);
+      saveData('userVotes', userVotes);
       renderLevels();
 
-      // Send vote to server
-      ws.send(JSON.stringify({
-        type: 'vote_level',
-        levelId: levelId,
-        value: value
-      }));
+      ws.send(JSON.stringify({ type: 'vote_level', levelId, value }));
     }
 
+    // Render levels
     function renderLevels() {
       const container = document.getElementById('levels-container');
       container.innerHTML = levels
@@ -168,6 +311,7 @@
         }).join('');
     }
 
+    // Handle incoming messages
     function handleMessage(message) {
       if (deletedMessages.has(message.id)) return;
       
@@ -189,13 +333,15 @@
       container.prepend(comment);
     }
 
+    // Delete a comment
     function deleteComment(element, messageId) {
       deletedMessages.add(messageId);
-      localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
+      saveData('deletedMessages', [...deletedMessages]);
       element.closest('.comment').remove();
-      ws.send(JSON.stringify({ type: 'delete_message', messageId: messageId }));
+      ws.send(JSON.stringify({ type: 'delete_message', messageId }));
     }
 
+    // Vote on a comment
     function voteComment(button, messageId, value) {
       if (userVotes[messageId]) return alert('You have already voted!');
       const voteContainer = button.parentElement;
@@ -211,49 +357,50 @@
       }
 
       userVotes[messageId] = true;
-      localStorage.setItem('userVotes', JSON.stringify(userVotes));
+      saveData('userVotes', userVotes);
 
-      ws.send(JSON.stringify({
-        type: 'vote_comment',
-        messageId: messageId,
-        value: value
-      }));
+      ws.send(JSON.stringify({ type: 'vote_comment', messageId, value }));
     }
 
+    // Save data to localStorage
+    function saveData(key, data) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    // WebSocket message handler
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      message.time = message.timestamp ? 
-        new Date(message.timestamp).toLocaleTimeString() : '';
+      message.time = message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : '';
 
-      switch(message.type) {
+      switch (message.type) {
         case 'init':
-          levels = message.levels.filter(l => !deletedLevels.has(l.id));
-          levelVotes = message.levelVotes || {};
-          userVotes = message.userVotes || {};
-          localStorage.setItem('levels', JSON.stringify(levels));
-          localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
-          localStorage.setItem('userVotes', JSON.stringify(userVotes));
+          levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
+          Object.assign(levelVotes, message.levelVotes || {});
+          Object.assign(userVotes, message.userVotes || {});
+          saveData('levels', levels);
+          saveData('levelVotes', levelVotes);
+          saveData('userVotes', userVotes);
           renderLevels();
           message.messages.forEach(handleMessage);
           break;
-          
+
         case 'new_level':
           if (!levels.some(l => l.id === message.level.id)) {
             levels.push(message.level);
             levelVotes[message.level.id] = { up: 0, down: 0 };
-            localStorage.setItem('levels', JSON.stringify(levels));
-            localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+            saveData('levels', levels);
+            saveData('levelVotes', levelVotes);
             renderLevels();
           }
           break;
-          
+
         case 'vote_level':
           levelVotes[message.levelId] = levelVotes[message.levelId] || { up: 0, down: 0 };
           levelVotes[message.levelId][message.value === 1 ? 'up' : 'down']++;
-          localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+          saveData('levelVotes', levelVotes);
           renderLevels();
           break;
-          
+
         case 'vote_comment':
           const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
           if (comment) {
@@ -268,24 +415,25 @@
             }
           }
           break;
-          
+
         case 'comment':
           handleMessage(message);
           break;
-          
+
         case 'delete_message':
           deletedMessages.add(message.messageId);
           document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
           break;
-          
+
         case 'delete_level':
           deletedLevels.add(message.levelId);
-          levels = levels.filter(l => l.id !== message.levelId);
+          levels.splice(levels.findIndex(l => l.id === message.levelId), 1);
           renderLevels();
           break;
       }
     };
 
+    // TurboWarp message handler
     window.addEventListener('message', (event) => {
       if (event.origin !== 'https://turbowarp.org') return;
       ws.send(JSON.stringify({
@@ -298,6 +446,7 @@
       }));
     });
 
+    // Initial render
     initAdminUI();
     renderLevels();
   </script>
