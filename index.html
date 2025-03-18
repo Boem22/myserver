@@ -227,6 +227,13 @@
       localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
       localStorage.setItem('userVotes', JSON.stringify(userVotes));
       renderLevels();
+
+      // Send vote to server
+      ws.send(JSON.stringify({
+        type: 'vote_level',
+        levelId: levelId,
+        value: value
+      }));
     }
 
     function renderLevels() {
@@ -284,7 +291,11 @@
       switch(message.type) {
         case 'init':
           levels = message.levels.filter(l => !deletedLevels.has(l.id));
+          levelVotes = message.levelVotes || {};
+          userVotes = message.userVotes || {};
           localStorage.setItem('levels', JSON.stringify(levels));
+          localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+          localStorage.setItem('userVotes', JSON.stringify(userVotes));
           renderLevels();
           message.messages.forEach(handleMessage);
           break;
@@ -292,9 +303,18 @@
         case 'new_level':
           if (!levels.some(l => l.id === message.level.id)) {
             levels.push(message.level);
+            levelVotes[message.level.id] = { up: 0, down: 0 };
             localStorage.setItem('levels', JSON.stringify(levels));
+            localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
             renderLevels();
           }
+          break;
+          
+        case 'vote_level':
+          levelVotes[message.levelId] = levelVotes[message.levelId] || { up: 0, down: 0 };
+          levelVotes[message.levelId][message.value === 1 ? 'up' : 'down']++;
+          localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+          renderLevels();
           break;
           
         case 'comment':

@@ -9,6 +9,8 @@ const DATA_FILE = 'data.json';
 // Persistent storage
 let messageHistory = [];
 let levelHistory = [];
+let levelVotes = {};
+let userVotes = {};
 
 function loadData() {
   try {
@@ -16,10 +18,12 @@ function loadData() {
     const parsed = JSON.parse(data);
     messageHistory = parsed.messages || [];
     levelHistory = parsed.levels || [];
+    levelVotes = parsed.levelVotes || {};
+    userVotes = parsed.userVotes || {};
     console.log('Loaded persistent data');
   } catch (err) {
     if (err.code === 'ENOENT') {
-      fs.writeFileSync(DATA_FILE, JSON.stringify({ messages: [], levels: [] }));
+      fs.writeFileSync(DATA_FILE, JSON.stringify({ messages: [], levels: [], levelVotes: {}, userVotes: {} }));
       console.log('Created new data file');
     } else {
       console.error('Error loading data:', err);
@@ -30,7 +34,9 @@ function loadData() {
 function saveData() {
   fs.writeFileSync(DATA_FILE, JSON.stringify({
     messages: messageHistory,
-    levels: levelHistory
+    levels: levelHistory,
+    levelVotes: levelVotes,
+    userVotes: userVotes
   }));
   console.log('Data saved');
 }
@@ -65,7 +71,9 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({
     type: 'init',
     messages: messageHistory,
-    levels: levelHistory
+    levels: levelHistory,
+    levelVotes: levelVotes,
+    userVotes: userVotes
   }));
 
   ws.on('message', (rawData) => {
@@ -91,7 +99,13 @@ wss.on('connection', (ws) => {
       case 'new_level':
         if (!levelHistory.some(l => l.id === message.level.id)) {
           levelHistory.push(message.level);
+          levelVotes[message.level.id] = { up: 0, down: 0 };
         }
+        break;
+
+      case 'vote_level':
+        levelVotes[message.levelId] = levelVotes[message.levelId] || { up: 0, down: 0 };
+        levelVotes[message.levelId][message.value === 1 ? 'up' : 'down']++;
         break;
 
       case 'delete_message':
@@ -100,6 +114,7 @@ wss.on('connection', (ws) => {
 
       case 'delete_level':
         levelHistory = levelHistory.filter(l => String(l.id) !== String(message.levelId));
+        delete levelVotes[message.levelId];
         break;
     }
 
