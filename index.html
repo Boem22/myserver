@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    /* Your existing CSS styles */
-
     /* Ensure scroll bars work */
     #levels-container,
     #comments-container {
       overflow-y: auto;
-      max-height: 200px; /* Adjust height as needed */
+      max-height: 200px;
       border: 1px solid #ccc;
       border-radius: 5px;
       padding: 10px;
@@ -29,10 +27,11 @@
     }
 
     /* Style for delete button */
-    .delete-btn {
-      margin-right: 10px;
+    .delete-btn, .delete-level-btn {
+      margin-left: 10px;
       color: red;
       cursor: pointer;
+      display: none; /* Hidden by default */
     }
 
     /* Ensure delete button and text don't overlap */
@@ -76,268 +75,138 @@
   </div>
 
   <!-- Levels Container -->
-  <div id="levels-container">
-    <!-- Levels will be populated dynamically -->
-  </div>
+  <div id="levels-container"></div>
 
   <!-- Comments Container -->
-  <div id="comments-container">
-    <!-- Comments will be populated dynamically -->
-  </div>
+  <div id="comments-container"></div>
 
   <script>
-    // Log when the site is opened
     console.log('Site opened by a user.');
-
-    // WebSocket connection
     const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
 
-    // Load levels and votes from localStorage
     let levels = JSON.parse(localStorage.getItem('levels')) || [];
     let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
     let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
 
-    // Convert stored arrays to sets for deleted messages/levels
     let deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     let deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
 
-    // Admin state (not saved in localStorage)
     let isAdmin = false;
 
-    // Initialize admin UI
     function initAdminUI() {
-      if (isAdmin) {
-        document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.remove('hidden'));
-        // Hide login button, show logout button
-        document.getElementById('login-btn').classList.add('hidden');
-        document.getElementById('logout-btn').classList.remove('hidden');
-      } else {
-        document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => btn.classList.add('hidden'));
-        document.getElementById('login-btn').classList.remove('hidden');
-        document.getElementById('logout-btn').classList.add('hidden');
-        // Hide any login status or error messages
-        document.getElementById('login-status').classList.add('hidden');
-        document.getElementById('login-error').classList.add('hidden');
-      }
+      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
+        btn.style.display = isAdmin ? 'inline-block' : 'none';
+      });
+
+      document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
+      document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
     }
 
-    // Login function
     function login() {
       const user = document.getElementById('username').value;
       const pass = document.getElementById('password').value;
+
       if (user === 'Admin' && pass === '1622005') {
         isAdmin = true;
-        document.getElementById('login-status').textContent = "You are now logged in as admin.";
         document.getElementById('login-status').classList.remove('hidden');
         document.getElementById('login-error').classList.add('hidden');
         initAdminUI();
       } else {
-        document.getElementById('login-error').textContent = "Wrong username or password, try again";
         document.getElementById('login-error').classList.remove('hidden');
         document.getElementById('login-status').classList.add('hidden');
       }
     }
 
-    // Logout function
     function logout() {
       isAdmin = false;
       document.getElementById('login-status').classList.add('hidden');
       initAdminUI();
     }
 
-    // Clear login error when typing
-    document.getElementById('username').addEventListener('input', () => {
-      document.getElementById('login-error').classList.add('hidden');
-    });
-    document.getElementById('password').addEventListener('input', () => {
-      document.getElementById('login-error').classList.add('hidden');
-    });
-
-    // Add level function
     function addLevel() {
       const levelInput = document.getElementById('level-input');
       const levelCode = levelInput.value.trim();
       if (levelCode) {
-        const levelId = Date.now(); // Unique ID for the level
+        const levelId = Date.now();
         levels.push({ id: levelId, name: levelCode });
-        levelVotes[levelId] = { up: 0, down: 0 }; // Initialize votes for the level
+        levelVotes[levelId] = { up: 0, down: 0 };
         localStorage.setItem('levels', JSON.stringify(levels));
         localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
         renderLevels();
-        levelInput.value = ''; // Clear input
-
-        // Send the new level via WebSocket
-        const message = {
-          type: 'new_level',
-          content: `New level added: ${levelCode}`,
-          level: { id: levelId, name: levelCode }
-        };
-        ws.send(JSON.stringify(message));
+        levelInput.value = '';
       }
     }
 
-    // Delete level function
     function deleteLevel(levelId) {
       levels = levels.filter(level => level.id !== levelId);
       delete levelVotes[levelId];
       localStorage.setItem('levels', JSON.stringify(levels));
       localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
       renderLevels();
-
-      // Mark the level as deleted
-      deletedLevels.add(levelId);
-      localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
-
-      // Send the deleted level ID via WebSocket
-      const message = {
-        type: 'delete_level',
-        levelId: levelId
-      };
-      ws.send(JSON.stringify(message));
     }
 
-    // Voting function for levels
-    function voteLevel(levelId, value) {
-      if (userVotes[levelId]) {
-        alert('You have already voted on this level!');
-        return;
-      }
-      if (!levelVotes[levelId]) levelVotes[levelId] = { up: 0, down: 0 };
-      levelVotes[levelId][value === 1 ? 'up' : 'down']++;
-      userVotes[levelId] = true; // Mark that the user has voted on this level
-
-      localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
-      localStorage.setItem('userVotes', JSON.stringify(userVotes));
-      renderLevels(); // Update the display
-    }
-
-    // Render levels
     function renderLevels() {
       const container = document.getElementById('levels-container');
       container.innerHTML = levels
-        .filter(level => !deletedLevels.has(level.id))
-        .map(level => {
-          const votes = levelVotes[level.id] || { up: 0, down: 0 };
-          const ratioText = `${votes.up} vote(s) up ; ${votes.down} vote(s) down`;
-          return `
-            <div class="level-card">
-              <div>${level.name}</div>
-              <div class="vote-container">
-                <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
-                <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
-                <div class="ratio">${ratioText}</div>
-                ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
-              </div>
+        .map(level => `
+          <div class="level-card">
+            <div>${level.name}</div>
+            <div class="vote-container">
+              <button onclick="voteLevel(${level.id}, 1)">👍 ${levelVotes[level.id]?.up || 0}</button>
+              <button onclick="voteLevel(${level.id}, -1)">👎 ${levelVotes[level.id]?.down || 0}</button>
+              <div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>
             </div>
-          `;
-        }).join('');
+          </div>
+        `).join('');
+      initAdminUI();
     }
 
-    // Handle incoming WebSocket messages for comments
     function handleMessage(message) {
-      // Prevent duplicate comments by checking if one with the same id exists
-      if (document.querySelector(`.comment[data-id="${message.id}"]`)) return;
-      if (deletedMessages.has(message.id)) return; // Skip if marked as deleted
+      if (deletedMessages.has(message.id)) return;
 
       const container = document.getElementById('comments-container');
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
-      // Flex container: delete button on the left and content to the right
+      
       comment.innerHTML = `
-        <div style="display: flex; align-items: center;">
-          ${(isAdmin || message.fromTurbo) 
-            ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` 
-            : ''}
-          <div class="content" style="margin-left: 10px;">${message.content}</div>
-        </div>
-        <div class="vote-container">
-          <button onclick="voteComment(this)">👍 0</button>
-          <button onclick="voteComment(this)">👎 0</button>
-        </div>
+        <div>${message.content}</div>
+        <div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>
       `;
+
       container.prepend(comment);
+      initAdminUI();
     }
 
-    // Delete comment function
-    function deleteComment(element, messageId) {
+    function deleteComment(messageId) {
       deletedMessages.add(messageId);
       localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
-      element.closest('.comment').remove();
-
-      // Send the deleted message ID to the server
-      const message = {
-        type: 'delete_message',
-        messageId: messageId
-      };
-      ws.send(JSON.stringify(message));
+      document.querySelector(`.comment[data-id="${messageId}"]`)?.remove();
+      ws.send(JSON.stringify({ type: 'delete_message', messageId }));
     }
 
-    // Voting function for comments
-    function voteComment(button) {
-      const voteContainer = button.parentElement;
-      const upButton = voteContainer.querySelector('button:first-child');
-      const downButton = voteContainer.querySelector('button:last-child');
-
-      if (button === upButton) {
-        const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
-        upButton.textContent = `👍 ${upCount}`;
-      } else if (button === downButton) {
-        const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
-        downButton.textContent = `👎 ${downCount}`;
-      }
-      button.disabled = true;
-    }
-
-    // WebSocket message handler
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
 
-      if (message.type === 'init') {
-        // Initialize levels and messages from history
-        levels = message.levels;
-        renderLevels();
-        message.messages.forEach(handleMessage);
-      } else if (message.type === 'new_level') {
-        // Add level to all clients' UI
-        levels.push(message.level);
-        levelVotes[message.level.id] = { up: 0, down: 0 };
-        localStorage.setItem('levels', JSON.stringify(levels));
-        localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
-        renderLevels();
-      } else if (message.type === 'delete_level') {
-        // Remove level from all clients' UI
-        deletedLevels.add(message.levelId);
-        localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
-        levels = levels.filter(level => level.id !== message.levelId);
-        delete levelVotes[message.levelId];
-        localStorage.setItem('levels', JSON.stringify(levels));
-        localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
-        renderLevels();
-      } else if (message.type === 'comment') {
+      if (message.type === 'comment') {
         handleMessage(message);
       } else if (message.type === 'delete_message') {
         deletedMessages.add(message.messageId);
         localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
-        const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
-        if (comment) comment.remove();
+        document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
       }
     };
 
-    // TurboWarp Messaging
     window.addEventListener('message', (event) => {
-      console.log('Message received from TurboWarp:', event.data);
       if (event.origin !== 'https://turbowarp.org') return;
       const message = {
         type: 'comment',
         content: event.data,
-        id: Date.now().toString(), // Unique ID for the message
-        fromTurbo: true // Mark as a TurboWarp message
+        id: Date.now().toString()
       };
       ws.send(JSON.stringify(message));
     });
 
-    // Initial render
     initAdminUI();
     renderLevels();
   </script>
