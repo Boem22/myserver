@@ -30,8 +30,8 @@ const wss = new WebSocket.Server({ server });
 const clients = new Set();
 
 // Store messages and levels
-const messageHistory = [];
-const levelHistory = [];
+let messageHistory = [];
+let levelHistory = [];
 
 wss.on('connection', (ws) => {
     console.log('New client connected');
@@ -64,11 +64,18 @@ wss.on('connection', (ws) => {
             if (!levelHistory.some(lvl => lvl.id === parsedMessage.level.id)) {
                 levelHistory.push(parsedMessage.level);
             }
+        } else if (parsedMessage.type === 'delete_message') {
+            // Remove the message from history (if it exists)
+            messageHistory = messageHistory.filter(msg => msg.id !== parsedMessage.messageId);
+        } else if (parsedMessage.type === 'delete_level') {
+            // Remove the level from history (if it exists)
+            levelHistory = levelHistory.filter(lvl => lvl.id !== parsedMessage.levelId);
         }
 
-        // Broadcast the message to all connected clients except the sender
+        // Broadcast the message to all connected clients.
+        // For deletions, this ensures that every client wipes the message.
         clients.forEach(client => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
+            if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(parsedMessage));
             }
         });
