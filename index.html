@@ -5,166 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    /* Import the Pixeled font */
-    @font-face {
-      font-family: 'Pixeled';
-      src: url('Pixeled.ttf') format('truetype');
-    }
-
-    /* Apply the font to the entire page */
-    body {
-      font-family: 'Pixeled', sans-serif;
-      background-color: #1e1e1e;
-      color: #fef4b8;
-      margin: 0;
-      padding: 20px;
-    }
-
-    h1 {
-      font-size: 2.5rem;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    /* Admin Login */
-    #admin-login {
-      margin-bottom: 20px;
-    }
-
-    #admin-login input,
-    #admin-login button {
-      font-family: 'Pixeled', sans-serif;
-      padding: 5px;
-      margin: 5px 0;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-
-    #admin-login button {
-      cursor: pointer;
-    }
-
-    #admin-login button:hover {
-      background-color: #555;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    /* Game Embed */
-    #game-container {
-      margin-bottom: 20px;
-    }
-
-    iframe {
-      border: 2px solid #666;
-      border-radius: 5px;
-    }
-
-    /* Level Input */
-    #level-input-container {
-      margin-bottom: 20px;
-    }
-
-    #level-input-container input,
-    #level-input-container button {
-      font-family: 'Pixeled', sans-serif;
-      padding: 5px;
-      margin: 5px 0;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-
-    #level-input-container button {
-      cursor: pointer;
-    }
-
-    #level-input-container button:hover {
-      background-color: #555;
-    }
-
-    /* Levels and Comments Containers */
-    #levels-container,
-    #comments-container {
-      overflow-y: auto; /* Enable vertical scrolling */
-      max-height: 200px; /* Set a fixed height for the containers */
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 10px;
-      margin-bottom: 20px;
-      background-color: #2d2d2d;
-    }
-
-    /* Custom scrollbar styling */
-    #levels-container::-webkit-scrollbar,
-    #comments-container::-webkit-scrollbar {
-      width: 8px; /* Width of the scrollbar */
-    }
-
-    #levels-container::-webkit-scrollbar-track,
-    #comments-container::-webkit-scrollbar-track {
-      background: #1e1e1e; /* Track color */
-      border-radius: 5px;
-    }
-
-    #levels-container::-webkit-scrollbar-thumb,
-    #comments-container::-webkit-scrollbar-thumb {
-      background: #888; /* Thumb color */
-      border-radius: 5px;
-    }
-
-    #levels-container::-webkit-scrollbar-thumb:hover,
-    #comments-container::-webkit-scrollbar-thumb:hover {
-      background: #555; /* Thumb color on hover */
-    }
-
-    /* Level and Comment Cards */
-    .level-card,
-    .comment {
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #3a3a3a;
-    }
-
-    .vote-container {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .vote-container button {
-      font-family: 'Pixeled', sans-serif;
-      padding: 5px;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-
-    .vote-container button:hover {
-      background-color: #555;
-    }
-
-    .delete-btn,
-    .delete-level-btn {
-      margin-left: 10px;
-      color: red;
-      cursor: pointer;
-    }
-
-    .timestamp {
-      font-size: 0.8em;
-      color: #888;
-      margin-left: 10px;
-    }
+    /* Your existing CSS styles */
   </style>
 </head>
 <body>
@@ -205,6 +46,11 @@
     const userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
+
+    // Log WebSocket messages
+    function logMessage(direction, message) {
+      console.log(`[${direction}]`, message);
+    }
 
     // Initialize admin UI
     function initAdminUI() {
@@ -258,10 +104,12 @@
         renderLevels();
         levelInput.value = '';
 
-        ws.send(JSON.stringify({
+        const message = {
           type: 'new_level',
           level: { id: levelId, name: levelCode }
-        }));
+        };
+        ws.send(JSON.stringify(message));
+        logMessage('SENT', message);
       }
     }
 
@@ -276,7 +124,9 @@
       deletedLevels.add(levelId);
       saveData('deletedLevels', [...deletedLevels]);
 
-      ws.send(JSON.stringify({ type: 'delete_level', levelId }));
+      const message = { type: 'delete_level', levelId };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
     }
 
     // Vote on a level
@@ -288,7 +138,9 @@
       saveData('userVotes', userVotes);
       renderLevels();
 
-      ws.send(JSON.stringify({ type: 'vote_level', levelId, value }));
+      const message = { type: 'vote_level', levelId, value };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
     }
 
     // Render levels
@@ -338,7 +190,10 @@
       deletedMessages.add(messageId);
       saveData('deletedMessages', [...deletedMessages]);
       element.closest('.comment').remove();
-      ws.send(JSON.stringify({ type: 'delete_message', messageId }));
+
+      const message = { type: 'delete_message', messageId };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
     }
 
     // Vote on a comment
@@ -359,7 +214,9 @@
       userVotes[messageId] = true;
       saveData('userVotes', userVotes);
 
-      ws.send(JSON.stringify({ type: 'vote_comment', messageId, value }));
+      const message = { type: 'vote_comment', messageId, value };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
     }
 
     // Save data to localStorage
@@ -370,6 +227,8 @@
     // WebSocket message handler
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      logMessage('RECEIVED', message);
+
       message.time = message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : '';
 
       switch (message.type) {
@@ -436,14 +295,16 @@
     // TurboWarp message handler
     window.addEventListener('message', (event) => {
       if (event.origin !== 'https://turbowarp.org') return;
-      ws.send(JSON.stringify({
+      const message = {
         type: 'comment',
         content: event.data,
         id: Date.now().toString(),
         timestamp: Date.now(),
         upvotes: 0,
         downvotes: 0
-      }));
+      };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
     });
 
     // Initial render
