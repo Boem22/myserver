@@ -30,7 +30,7 @@
 
     /* Style for delete button */
     .delete-btn {
-      margin-right: 10px;
+      margin-left: 10px;
       color: red;
       cursor: pointer;
     }
@@ -38,7 +38,7 @@
     /* Ensure delete button and text don't overlap */
     .comment {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       margin: 10px 0;
       padding: 10px;
       border: 1px solid #eee;
@@ -237,16 +237,18 @@
     function handleMessage(message) {
       // Prevent duplicate comments by checking if one with the same id exists
       if (document.querySelector(`.comment[data-id="${message.id}"]`)) return;
-
       if (deletedMessages.has(message.id)) return; // Skip if marked as deleted
 
       const container = document.getElementById('comments-container');
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
+      // Use a flex container for content and delete button to avoid overlap
       comment.innerHTML = `
-        ${isAdmin ? '<div class="delete-btn" onclick="deleteComment(this, \'' + message.id + '\')">🗑️</div>' : ''}
-        <div class="content">${message.content}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="content">${message.content}</div>
+          ${(isAdmin || message.fromTurbo) ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` : ''}
+        </div>
         <div class="vote-container">
           <button onclick="voteComment(this)">👍 0</button>
           <button onclick="voteComment(this)">👎 0</button>
@@ -327,7 +329,8 @@
       const message = {
         type: 'comment',
         content: event.data,
-        id: Date.now().toString() // Unique ID for the message
+        id: Date.now().toString(), // Unique ID for the message
+        fromTurbo: true // Mark as a TurboWarp message
       };
       ws.send(JSON.stringify(message));
     });
