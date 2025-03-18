@@ -85,7 +85,9 @@ wss.on('connection', (ws) => {
         type: 'comment',
         content: rawData.toString(),
         id: Date.now(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        upvotes: 0,
+        downvotes: 0
       };
     }
 
@@ -93,6 +95,8 @@ wss.on('connection', (ws) => {
       case 'comment':
         message.id = message.id || Date.now();
         message.timestamp = message.timestamp || Date.now();
+        message.upvotes = message.upvotes || 0;
+        message.downvotes = message.downvotes || 0;
         messageHistory.push(message);
         break;
 
@@ -106,6 +110,14 @@ wss.on('connection', (ws) => {
       case 'vote_level':
         levelVotes[message.levelId] = levelVotes[message.levelId] || { up: 0, down: 0 };
         levelVotes[message.levelId][message.value === 1 ? 'up' : 'down']++;
+        break;
+
+      case 'vote_comment':
+        const comment = messageHistory.find(m => m.id === message.messageId);
+        if (comment) {
+          if (message.value === 1) comment.upvotes++;
+          else comment.downvotes++;
+        }
         break;
 
       case 'delete_message':

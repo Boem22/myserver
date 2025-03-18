@@ -269,8 +269,8 @@
           ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` : ''}
         </div>
         <div class="vote-container">
-          <button onclick="voteComment(this)">👍 0</button>
-          <button onclick="voteComment(this)">👎 0</button>
+          <button onclick="voteComment(this, '${message.id}', 1)">👍 ${message.upvotes || 0}</button>
+          <button onclick="voteComment(this, '${message.id}', -1)">👎 ${message.downvotes || 0}</button>
         </div>
       `;
       container.prepend(comment);
@@ -281,6 +281,30 @@
       localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
       element.closest('.comment').remove();
       ws.send(JSON.stringify({ type: 'delete_message', messageId: messageId }));
+    }
+
+    function voteComment(button, messageId, value) {
+      if (userVotes[messageId]) return alert('You have already voted!');
+      const voteContainer = button.parentElement;
+      const upButton = voteContainer.querySelector('button:first-child');
+      const downButton = voteContainer.querySelector('button:last-child');
+
+      if (value === 1) {
+        const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
+        upButton.textContent = `👍 ${upCount}`;
+      } else {
+        const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
+        downButton.textContent = `👎 ${downCount}`;
+      }
+
+      userVotes[messageId] = true;
+      localStorage.setItem('userVotes', JSON.stringify(userVotes));
+
+      ws.send(JSON.stringify({
+        type: 'vote_comment',
+        messageId: messageId,
+        value: value
+      }));
     }
 
     ws.onmessage = (event) => {
@@ -317,6 +341,21 @@
           renderLevels();
           break;
           
+        case 'vote_comment':
+          const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
+          if (comment) {
+            const upButton = comment.querySelector('.vote-container button:first-child');
+            const downButton = comment.querySelector('.vote-container button:last-child');
+            if (message.value === 1) {
+              const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
+              upButton.textContent = `👍 ${upCount}`;
+            } else {
+              const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
+              downButton.textContent = `👎 ${downCount}`;
+            }
+          }
+          break;
+          
         case 'comment':
           handleMessage(message);
           break;
@@ -340,7 +379,9 @@
         type: 'comment',
         content: event.data,
         id: Date.now().toString(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        upvotes: 0,
+        downvotes: 0
       }));
     });
 
