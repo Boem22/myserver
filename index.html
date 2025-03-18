@@ -30,7 +30,7 @@
 
     /* Style for delete button */
     .delete-btn {
-      margin-left: 10px;
+      margin-right: 10px;
       color: red;
       cursor: pointer;
     }
@@ -243,11 +243,13 @@
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
-      // Use a flex container for content and delete button to avoid overlap
+      // Flex container: delete button on the left and content to the right
       comment.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div class="content">${message.content}</div>
-          ${(isAdmin || message.fromTurbo) ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` : ''}
+        <div style="display: flex; align-items: center;">
+          ${(isAdmin || message.fromTurbo) 
+            ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` 
+            : ''}
+          <div class="content" style="margin-left: 10px;">${message.content}</div>
         </div>
         <div class="vote-container">
           <button onclick="voteComment(this)">👍 0</button>
