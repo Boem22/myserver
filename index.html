@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    /* Ensure scroll bars work */
     #levels-container,
     #comments-container {
       overflow-y: auto;
@@ -16,7 +15,6 @@
       margin-bottom: 20px;
     }
 
-    /* Animation for login messages */
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -26,15 +24,12 @@
       animation: fadeIn 0.5s ease-in-out;
     }
 
-    /* Style for delete button */
-    .delete-btn, .delete-level-btn {
+    .delete-btn {
       margin-left: 10px;
       color: red;
       cursor: pointer;
-      display: none; /* Hidden by default */
     }
 
-    /* Ensure delete button and text don't overlap */
     .comment {
       display: flex;
       flex-direction: column;
@@ -43,10 +38,15 @@
       border: 1px solid #eee;
       border-radius: 5px;
     }
-    
-    /* Utility to hide elements */
+
     .hidden {
       display: none;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #666;
+      margin-left: 10px;
     }
   </style>
 </head>
@@ -84,28 +84,38 @@
     console.log('Site opened by a user.');
     const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
 
+    // Persistent storage
     let levels = JSON.parse(localStorage.getItem('levels')) || [];
     let levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
     let userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
-
     let deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     let deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
-
     let isAdmin = false;
 
     function initAdminUI() {
-      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
-        btn.style.display = isAdmin ? 'inline-block' : 'none';
-      });
+      const elements = {
+        loginBtn: document.getElementById('login-btn'),
+        logoutBtn: document.getElementById('logout-btn'),
+        status: document.getElementById('login-status'),
+        error: document.getElementById('login-error')
+      };
 
-      document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
-      document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
+      if (isAdmin) {
+        elements.loginBtn.classList.add('hidden');
+        elements.logoutBtn.classList.remove('hidden');
+        elements.status.classList.remove('hidden');
+        elements.error.classList.add('hidden');
+      } else {
+        elements.loginBtn.classList.remove('hidden');
+        elements.logoutBtn.classList.add('hidden');
+        elements.status.classList.add('hidden');
+        elements.error.classList.add('hidden');
+      }
     }
 
     function login() {
       const user = document.getElementById('username').value;
       const pass = document.getElementById('password').value;
-
       if (user === 'Admin' && pass === '1622005') {
         isAdmin = true;
         document.getElementById('login-status').classList.remove('hidden');
@@ -119,9 +129,15 @@
 
     function logout() {
       isAdmin = false;
-      document.getElementById('login-status').classList.add('hidden');
       initAdminUI();
     }
+
+    document.getElementById('username').addEventListener('input', () => {
+      document.getElementById('login-error').classList.add('hidden');
+    });
+    document.getElementById('password').addEventListener('input', () => {
+      document.getElementById('login-error').classList.add('hidden');
+    });
 
     function addLevel() {
       const levelInput = document.getElementById('level-input');
@@ -134,6 +150,11 @@
         localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
         renderLevels();
         levelInput.value = '';
+
+        ws.send(JSON.stringify({
+          type: 'new_level',
+          level: { id: levelId, name: levelCode }
+        }));
       }
     }
 
@@ -143,68 +164,118 @@
       localStorage.setItem('levels', JSON.stringify(levels));
       localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
       renderLevels();
+
+      deletedLevels.add(levelId);
+      localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
+
+      ws.send(JSON.stringify({
+        type: 'delete_level',
+        levelId: levelId
+      }));
+    }
+
+    function voteLevel(levelId, value) {
+      if (userVotes[levelId]) return alert('You have already voted!');
+      levelVotes[levelId][value === 1 ? 'up' : 'down']++;
+      userVotes[levelId] = true;
+      localStorage.setItem('levelVotes', JSON.stringify(levelVotes));
+      localStorage.setItem('userVotes', JSON.stringify(userVotes));
+      renderLevels();
     }
 
     function renderLevels() {
       const container = document.getElementById('levels-container');
       container.innerHTML = levels
-        .map(level => `
-          <div class="level-card">
-            <div>${level.name}</div>
-            <div class="vote-container">
-              <button onclick="voteLevel(${level.id}, 1)">👍 ${levelVotes[level.id]?.up || 0}</button>
-              <button onclick="voteLevel(${level.id}, -1)">👎 ${levelVotes[level.id]?.down || 0}</button>
-              <div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>
+        .filter(level => !deletedLevels.has(level.id))
+        .map(level => {
+          const votes = levelVotes[level.id] || { up: 0, down: 0 };
+          return `
+            <div class="level-card">
+              <div>${level.name}</div>
+              <div class="vote-container">
+                <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
+                <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
+                ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+              </div>
             </div>
-          </div>
-        `).join('');
-      initAdminUI();
+          `;
+        }).join('');
     }
 
     function handleMessage(message) {
       if (deletedMessages.has(message.id)) return;
-
+      
       const container = document.getElementById('comments-container');
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
-      
       comment.innerHTML = `
-        <div>${message.content}</div>
-        <div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="content">${message.content}</div>
+          <small class="timestamp">${message.time || ''}</small>
+          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` : ''}
+        </div>
+        <div class="vote-container">
+          <button onclick="voteComment(this)">👍 0</button>
+          <button onclick="voteComment(this)">👎 0</button>
+        </div>
       `;
-
       container.prepend(comment);
-      initAdminUI();
     }
 
-    function deleteComment(messageId) {
+    function deleteComment(element, messageId) {
       deletedMessages.add(messageId);
       localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
-      document.querySelector(`.comment[data-id="${messageId}"]`)?.remove();
-      ws.send(JSON.stringify({ type: 'delete_message', messageId }));
+      element.closest('.comment').remove();
+      ws.send(JSON.stringify({ type: 'delete_message', messageId: messageId }));
     }
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      message.time = message.timestamp ? 
+        new Date(message.timestamp).toLocaleTimeString() : '';
 
-      if (message.type === 'comment') {
-        handleMessage(message);
-      } else if (message.type === 'delete_message') {
-        deletedMessages.add(message.messageId);
-        localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
-        document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
+      switch(message.type) {
+        case 'init':
+          levels = message.levels.filter(l => !deletedLevels.has(l.id));
+          localStorage.setItem('levels', JSON.stringify(levels));
+          renderLevels();
+          message.messages.forEach(handleMessage);
+          break;
+          
+        case 'new_level':
+          if (!levels.some(l => l.id === message.level.id)) {
+            levels.push(message.level);
+            localStorage.setItem('levels', JSON.stringify(levels));
+            renderLevels();
+          }
+          break;
+          
+        case 'comment':
+          handleMessage(message);
+          break;
+          
+        case 'delete_message':
+          deletedMessages.add(message.messageId);
+          document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
+          break;
+          
+        case 'delete_level':
+          deletedLevels.add(message.levelId);
+          levels = levels.filter(l => l.id !== message.levelId);
+          renderLevels();
+          break;
       }
     };
 
     window.addEventListener('message', (event) => {
       if (event.origin !== 'https://turbowarp.org') return;
-      const message = {
+      ws.send(JSON.stringify({
         type: 'comment',
         content: event.data,
-        id: Date.now().toString()
-      };
-      ws.send(JSON.stringify(message));
+        id: Date.now().toString(),
+        timestamp: Date.now()
+      }));
     });
 
     initAdminUI();

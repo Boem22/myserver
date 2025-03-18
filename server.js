@@ -4,94 +4,119 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 8080;
+const DATA_FILE = 'data.json';
 
-const server = http.createServer((req, res) => {
-    if (req.url === '/') {
-        const filePath = path.join(__dirname, 'index.html');
-        fs.readFile(filePath, (err, data) => {
-            if (err) {
-                console.error('Error loading index.html:', err);
-                res.writeHead(500, { 'Content-Type': 'text/plain' });
-                res.end('Error loading index.html');
-            } else {
-                res.writeHead(200, { 'Content-Type': 'text/html' });
-                res.end(data);
-            }
-        });
-    } else {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Not found');
-    }
-});
-
-const wss = new WebSocket.Server({ server });
-
-// Store all connected clients
-const clients = new Set();
-
-// Store messages and levels
+// Persistent storage
 let messageHistory = [];
 let levelHistory = [];
 
-wss.on('connection', (ws) => {
-    console.log('New client connected');
-    clients.add(ws);
+function loadData() {
+  try {
+    const data = fs.readFileSync(DATA_FILE);
+    const parsed = JSON.parse(data);
+    messageHistory = parsed.messages || [];
+    levelHistory = parsed.levels || [];
+    console.log('Loaded persistent data');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      fs.writeFileSync(DATA_FILE, JSON.stringify({ messages: [], levels: [] }));
+      console.log('Created new data file');
+    } else {
+      console.error('Error loading data:', err);
+    }
+  }
+}
 
-    // Send existing messages and levels to the new client
-    ws.send(JSON.stringify({ type: 'init', messages: messageHistory, levels: levelHistory }));
+function saveData() {
+  fs.writeFileSync(DATA_FILE, JSON.stringify({
+    messages: messageHistory,
+    levels: levelHistory
+  }));
+  console.log('Data saved');
+}
 
-    // Handle incoming messages from clients
-    ws.on('message', (message) => {
-        console.log('Received:', message.toString());
+// Initial data load
+loadData();
 
-        let parsedMessage;
-        try {
-            // Try to parse the message as JSON
-            parsedMessage = JSON.parse(message.toString());
-        } catch (error) {
-            // If parsing fails, treat it as a plain text message
-            parsedMessage = {
-                type: 'comment',
-                content: message.toString()
-            };
-        }
-
-        if (parsedMessage.type === 'comment') {
-            // Add the message to history
-            messageHistory.push(parsedMessage);
-        } else if (parsedMessage.type === 'new_level') {
-            // Only add the level if it doesn't already exist
-            if (!levelHistory.some(lvl => lvl.id === parsedMessage.level.id)) {
-                levelHistory.push(parsedMessage.level);
-            }
-        } else if (parsedMessage.type === 'delete_message') {
-            // Remove the message from history.
-            // We convert both ids to strings to match TurboWarp messages with numeric ids.
-            messageHistory = messageHistory.filter(
-                msg => String(msg.id) !== String(parsedMessage.messageId)
-            );
-        } else if (parsedMessage.type === 'delete_level') {
-            // Remove the level from history (if it exists)
-            levelHistory = levelHistory.filter(lvl => String(lvl.id) !== String(parsedMessage.levelId));
-        }
-
-        // Broadcast the message to all connected clients.
-        // For deletions, this ensures that every client wipes the message.
-        clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify(parsedMessage));
-            }
-        });
+const server = http.createServer((req, res) => {
+  if (req.url === '/') {
+    fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Error loading index.html');
+      } else {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      }
     });
-
-    // Handle client disconnection
-    ws.on('close', () => {
-        console.log('Client disconnected');
-        clients.delete(ws);
-    });
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+  }
 });
 
-// Start the server
+const wss = new WebSocket.Server({ server });
+const clients = new Set();
+
+wss.on('connection', (ws) => {
+  console.log('New client connected');
+  clients.add(ws);
+
+  ws.send(JSON.stringify({
+    type: 'init',
+    messages: messageHistory,
+    levels: levelHistory
+  }));
+
+  ws.on('message', (rawData) => {
+    let message;
+    try {
+      message = JSON.parse(rawData.toString());
+    } catch {
+      message = {
+        type: 'comment',
+        content: rawData.toString(),
+        id: Date.now(),
+        timestamp: Date.now()
+      };
+    }
+
+    switch (message.type) {
+      case 'comment':
+        message.id = message.id || Date.now();
+        message.timestamp = message.timestamp || Date.now();
+        messageHistory.push(message);
+        break;
+
+      case 'new_level':
+        if (!levelHistory.some(l => l.id === message.level.id)) {
+          levelHistory.push(message.level);
+        }
+        break;
+
+      case 'delete_message':
+        messageHistory = messageHistory.filter(m => String(m.id) !== String(message.messageId));
+        break;
+
+      case 'delete_level':
+        levelHistory = levelHistory.filter(l => String(l.id) !== String(message.levelId));
+        break;
+    }
+
+    saveData();
+    clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message));
+      }
+    });
+  });
+
+  ws.on('close', () => {
+    clients.delete(ws);
+    console.log('Client disconnected');
+  });
+});
+
 server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
