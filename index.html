@@ -157,6 +157,27 @@
         elements.status.classList.add('hidden');
         elements.error.classList.add('hidden');
       }
+
+      // Update delete buttons for all messages
+      updateDeleteButtons();
+    }
+
+    function updateDeleteButtons() {
+      const comments = document.querySelectorAll('.comment');
+      comments.forEach(comment => {
+        const deleteBtn = comment.querySelector('.delete-btn');
+        if (isAdmin) {
+          if (!deleteBtn) {
+            const deleteButton = document.createElement('div');
+            deleteButton.className = 'delete-btn';
+            deleteButton.textContent = '🗑️';
+            deleteButton.onclick = () => deleteComment(deleteButton, comment.getAttribute('data-id'));
+            comment.querySelector('div').appendChild(deleteButton);
+          }
+        } else {
+          if (deleteBtn) deleteBtn.remove();
+        }
+      });
     }
 
     function login() {
