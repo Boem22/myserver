@@ -60,13 +60,15 @@ wss.on('connection', (ws) => {
             // Add the message to history
             messageHistory.push(parsedMessage);
         } else if (parsedMessage.type === 'new_level') {
-            // Add the level to history
-            levelHistory.push(parsedMessage.level);
+            // Only add the level if it doesn't already exist
+            if (!levelHistory.some(lvl => lvl.id === parsedMessage.level.id)) {
+                levelHistory.push(parsedMessage.level);
+            }
         }
 
-        // Broadcast the message to all connected clients
+        // Broadcast the message to all connected clients except the sender
         clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(parsedMessage));
             }
         });
