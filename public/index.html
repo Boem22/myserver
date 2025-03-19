@@ -5,105 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    @font-face {
-      font-family: 'Pixeled';
-      src: url('Pixeled.ttf') format('truetype');
-    }
-    body {
-      font-family: 'Pixeled', sans-serif;
-      background-color: #1e1e1e;
-      color: #fef4b8;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      font-size: 2.5rem;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    #admin-login {
-      margin-bottom: 20px;
-    }
-    #admin-login input,
-    #admin-login button {
-      padding: 5px;
-      margin: 5px 0;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-    .hidden {
-      display: none;
-    }
-    #game-container {
-      margin-bottom: 20px;
-    }
-    iframe {
-      border: 2px solid #666;
-      border-radius: 5px;
-    }
-    #controls-container {
-      display: flex;
-      gap: 20px;
-      margin: 20px 0;
-      flex-wrap: wrap;
-    }
-    #level-input-container {
-      flex: 1;
-      min-width: 300px;
-    }
-    #universal-search {
-      flex: 1;
-      min-width: 300px;
-    }
-    #level-input-container input {
-      width: calc(100% - 90px);
-    }
-    #search-input {
-      width: 100%;
-      padding: 8px;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-    #levels-container,
-    #comments-container {
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 10px;
-      margin-bottom: 20px;
-      background-color: #2d2d2d;
-    }
-    .level-card {
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #3a3a3a;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .comment {
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #3a3a3a;
-    }
-    .delete-btn,
-    .delete-level-btn {
-      margin-left: 10px;
-      color: red;
-      cursor: pointer;
-    }
-    .timestamp {
-      font-size: 0.8em;
-      color: #888;
-      margin-left: 10px;
-    }
+    @font-face { font-family: 'Pixeled'; src: url('Pixeled.ttf') format('truetype'); }
+    body { font-family: 'Pixeled', sans-serif; background-color: #1e1e1e; color: #fef4b8; margin: 0; padding: 20px; }
+    h1 { font-size: 2.5rem; text-align: center; margin-bottom: 20px; }
+    #admin-login { margin-bottom: 20px; }
+    #admin-login input, #admin-login button { padding: 5px; margin: 5px 0; background-color: #444; color: #fef4b8; border: 1px solid #666; border-radius: 3px; }
+    .hidden { display: none; }
+    #game-container { margin-bottom: 20px; }
+    iframe { border: 2px solid #666; border-radius: 5px; }
+    #controls-container { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
+    #level-input-container { flex: 1; min-width: 300px; }
+    #universal-search { flex: 1; min-width: 300px; }
+    #level-input-container input { width: calc(100% - 90px); }
+    #search-input { width: 100%; padding: 8px; background-color: #444; color: #fef4b8; border: 1px solid #666; border-radius: 3px; }
+    #levels-container, #comments-container { border: 1px solid #ccc; border-radius: 5px; padding: 10px; margin-bottom: 20px; background-color: #2d2d2d; }
+    .level-card { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #3a3a3a; display: flex; justify-content: space-between; align-items: center; }
+    .comment { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #3a3a3a; }
+    .delete-btn, .delete-level-btn { margin-left: 10px; color: red; cursor: pointer; }
+    .timestamp { font-size: 0.8em; color: #888; margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -115,7 +34,7 @@
     <button id="logout-btn" class="hidden" onclick="logout()">Logout</button>
   </div>
   <div id="game-container">
-    <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen="" width="720" height="500"></iframe>
+    <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen width="720" height="500"></iframe>
   </div>
   <div id="controls-container">
     <div id="level-input-container">
@@ -123,9 +42,7 @@
       <button onclick="addLevel()">Add Level</button>
     </div>
     <div id="universal-search">
-      <input type="text" id="search-input" 
-             placeholder="Search messages and levels..."
-             oninput="filterContent(this.value)">
+      <input type="text" id="search-input" placeholder="Search messages and levels..." oninput="filterContent(this.value)">
     </div>
   </div>
   <div id="levels-container"></div>
@@ -136,7 +53,7 @@
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
-    let messages = []; // Global array for all messages
+    let messages = [];
 
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
@@ -173,10 +90,7 @@
         localStorage.setItem('levels', JSON.stringify(levels));
         renderLevels();
         levelInput.value = '';
-        ws.send(JSON.stringify({ 
-          type: 'new_level', 
-          level: { id: levelId, name: levelCode }
-        }));
+        ws.send(JSON.stringify({ type: 'new_level', level: { id: levelId, name: levelCode } }));
       }
     }
 
@@ -194,116 +108,105 @@
 
     function renderLevels() {
       const container = document.getElementById('levels-container');
-      const sortedLevels = [...levels]
-        .filter(level => !deletedLevels.has(level.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      container.innerHTML = sortedLevels
-        .map(level => `
-          <div class="level-card" data-id="${level.id}">
-            <div>${level.name}</div>
-            ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
-          </div>
-        `).join('');
-
+      const sorted = [...levels].filter(l => !deletedLevels.has(l.id)).sort((a, b) => a.name.localeCompare(b.name));
+      container.innerHTML = sorted.map(l => `
+        <div class="level-card" data-id="${l.id}">
+          <div>${l.name}</div>
+          ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${l.id})">🗑️</div>` : ''}
+        </div>
+      `).join('');
       filterContent(document.getElementById('search-input').value);
     }
 
     function renderComments() {
       const container = document.getElementById('comments-container');
       container.innerHTML = '';
-      messages.forEach(message => {
-        if (!deletedMessages.has(message.id)) {
-          container.insertAdjacentHTML('afterbegin', createCommentHTML(message));
-        }
+      messages.forEach(m => {
+        if (!deletedMessages.has(m.id)) container.insertAdjacentHTML('afterbegin', createCommentHTML(m));
       });
       filterContent(document.getElementById('search-input').value);
     }
 
-    // NOTE: The change is here: message.id is now passed as a number.
-    function createCommentHTML(message) {
-      const isTurboWarp = message.source === 'turbowarp';
+    function createCommentHTML(m) {
+      const isTW = m.source === 'turbowarp';
       return `
-        <div class="comment" data-id="${message.id}">
+        <div class="comment" data-id="${m.id}">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="content">${message.content}</div>
+            <div class="content">${m.content}</div>
             <div style="display: flex; align-items: center; gap: 10px;">
-              ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
-              ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(${message.id})">🗑️</div>` : ''}
+              ${!isTW ? `<small class="timestamp">${new Date(m.timestamp).toLocaleTimeString()}</small>` : ''}
+              ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(${m.id})">🗑️</div>` : ''}
             </div>
           </div>
         </div>
       `;
     }
 
-    function renderNewComment(message) {
-      if (deletedMessages.has(message.id)) return;
+    function renderNewComment(m) {
+      if (deletedMessages.has(m.id)) return;
       const container = document.getElementById('comments-container');
-      container.insertAdjacentHTML('afterbegin', createCommentHTML(message));
+      container.insertAdjacentHTML('afterbegin', createCommentHTML(m));
       filterContent(document.getElementById('search-input').value);
     }
 
-    function filterContent(searchTerm) {
-      const term = searchTerm.toLowerCase().trim();
-      document.querySelectorAll('.comment').forEach(comment => {
-        const content = comment.querySelector('.content').textContent.toLowerCase();
-        comment.style.display = content.includes(term) ? 'block' : 'none';
+    function filterContent(term) {
+      term = term.toLowerCase().trim();
+      document.querySelectorAll('.comment').forEach(c => {
+        const content = c.querySelector('.content').textContent.toLowerCase();
+        c.style.display = content.includes(term) ? 'block' : 'none';
       });
-      document.querySelectorAll('.level-card').forEach(level => {
-        const name = level.querySelector('div').textContent.toLowerCase().trim();
-        level.style.display = name.includes(term) ? 'flex' : 'none';
+      document.querySelectorAll('.level-card').forEach(l => {
+        const name = l.querySelector('div').textContent.toLowerCase().trim();
+        l.style.display = name.includes(term) ? 'flex' : 'none';
       });
     }
 
-    function deleteComment(messageId) {
-      deletedMessages.add(messageId);
+    function deleteComment(id) {
+      deletedMessages.add(id);
       localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
-      document.querySelector(`.comment[data-id="${messageId}"]`)?.remove();
-      ws.send(JSON.stringify({ type: 'delete_message', messageId }));
+      document.querySelector(`.comment[data-id="${id}"]`)?.remove();
+      ws.send(JSON.stringify({ type: 'delete_message', messageId: id }));
     }
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      console.log('[WS IN] Received:', message);
-      switch (message.type) {
+      const m = JSON.parse(event.data);
+      switch(m.type) {
         case 'init':
           levels.length = 0;
-          levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
-          messages = message.messages;
+          levels.push(...m.levels.filter(l => !deletedLevels.has(l.id)));
+          messages = m.messages;
           renderLevels();
           renderComments();
           break;
         case 'comment':
-          messages.push(message);
-          renderNewComment(message);
+          messages.push(m);
+          renderNewComment(m);
           break;
         case 'delete_level':
-          deletedLevels.add(message.levelId);
+          deletedLevels.add(m.levelId);
           renderLevels();
           break;
         case 'delete_message':
-          deletedMessages.add(message.messageId);
-          document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
+          deletedMessages.add(m.messageId);
+          document.querySelector(`.comment[data-id="${m.messageId}"]`)?.remove();
           break;
       }
     };
 
-    window.addEventListener('message', (event) => {
-      if (event.origin !== 'https://turbowarp.org') return;
+    window.addEventListener('message', (e) => {
+      if (e.origin !== 'https://turbowarp.org') return;
       try {
-        const message = {
+        const m = {
           type: 'comment',
-          content: String(event.data),
+          content: String(e.data),
           id: Date.now(),
           timestamp: Date.now(),
           source: 'turbowarp'
         };
-        const tempComment = document.querySelector(`.comment[data-id="temp-${message.id}"]`);
-        if (tempComment) tempComment.remove();
-        ws.send(JSON.stringify(message));
-      } catch (err) {
-        console.error('[TURBOWARP] Error:', err);
-      }
+        const temp = document.querySelector(`.comment[data-id="temp-${m.id}"]`);
+        if (temp) temp.remove();
+        ws.send(JSON.stringify(m));
+      } catch (err) {}
     });
 
     initAdminUI();
