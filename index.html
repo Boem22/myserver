@@ -5,28 +5,150 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
-    /* Your existing CSS styles */
-    .hidden { display: none; }
-    .level-card, .comment {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin: 10px 0;
+    @font-face {
+      font-family: 'Pixeled';
+      src: url('Pixeled.ttf') format('truetype');
     }
+
+    body {
+      font-family: 'Pixeled', sans-serif;
+      background-color: #1e1e1e;
+      color: #fef4b8;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #admin-login {
+      margin-bottom: 20px;
+    }
+
+    #admin-login input,
+    #admin-login button {
+      font-family: 'Pixeled', sans-serif;
+      padding: 5px;
+      margin: 5px 0;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
+    }
+
+    #admin-login button {
+      cursor: pointer;
+    }
+
+    #admin-login button:hover {
+      background-color: #555;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #game-container {
+      margin-bottom: 20px;
+    }
+
+    iframe {
+      border: 2px solid #666;
+      border-radius: 5px;
+    }
+
+    #search-container {
+      margin: 15px 0;
+      text-align: center;
+    }
+
+    #search-input {
+      width: 300px;
+      padding: 8px;
+      font-family: 'Pixeled', sans-serif;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
+    }
+
+    #level-input-container input,
+    #level-input-container button {
+      font-family: 'Pixeled', sans-serif;
+      padding: 5px;
+      margin: 5px 0;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
+    }
+
+    #level-input-container button {
+      cursor: pointer;
+    }
+
+    #level-input-container button:hover {
+      background-color: #555;
+    }
+
+    #levels-container,
+    #comments-container {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 20px;
+      background-color: #2d2d2d;
+    }
+
+    .level-card,
+    .comment {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background-color: #3a3a3a;
+    }
+
     .vote-container {
       display: flex;
       gap: 10px;
-      align-items: center;
+      margin-top: 10px;
     }
-    .delete-level-btn, .delete-btn {
+
+    .vote-container button {
+      font-family: 'Pixeled', sans-serif;
+      padding: 5px;
+      background-color: #444;
+      color: #fef4b8;
+      border: 1px solid #666;
+      border-radius: 3px;
       cursor: pointer;
+    }
+
+    .vote-container button:hover {
+      background-color: #555;
+    }
+
+    .delete-btn,
+    .delete-level-btn {
+      margin-left: 10px;
       color: red;
+      cursor: pointer;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #888;
+      margin-left: 10px;
     }
   </style>
 </head>
 <body>
   <h1>Kip Online Maker</h1>
 
-  <!-- Admin Login -->
   <div id="admin-login">
     <input type="text" id="username" placeholder="Username" />
     <input type="password" id="password" placeholder="Password" />
@@ -34,28 +156,27 @@
     <button id="logout-btn" class="hidden" onclick="logout()">Logout</button>
   </div>
 
-  <!-- Game Embed -->
   <div id="game-container">
     <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen="" width="720" height="500"></iframe>
   </div>
 
-  <!-- Level Input -->
+  <div id="search-container">
+    <input type="text" id="search-input" placeholder="Search messages..." oninput="filterMessages(this.value)" />
+  </div>
+
   <div id="level-input-container">
     <input type="text" id="level-input" placeholder="Enter level code..." />
     <button onclick="addLevel()">Add Level</button>
   </div>
 
-  <!-- Levels Container -->
   <div id="levels-container"></div>
 
-  <!-- Comments Container -->
   <div id="comments-container"></div>
 
   <script>
     const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
     let isAdmin = false;
 
-    // Load data from localStorage
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
     const levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
     const userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
@@ -70,30 +191,18 @@
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
       updateDeleteButtons();
-      renderLevels();
     }
 
     function updateDeleteButtons() {
-      document.querySelectorAll('.level-card').forEach(levelCard => {
-        const deleteBtn = levelCard.querySelector('.delete-level-btn');
-        if (isAdmin && !deleteBtn) {
-          const deleteButton = document.createElement('div');
-          deleteButton.className = 'delete-level-btn';
-          deleteButton.textContent = '🗑️';
-          deleteButton.onclick = () => deleteLevel(Number(levelCard.getAttribute('data-id')));
-          levelCard.querySelector('.vote-container').appendChild(deleteButton);
-        } else if (!isAdmin && deleteBtn) {
-          deleteBtn.remove();
-        }
-      });
-
       document.querySelectorAll('.comment').forEach(comment => {
         const deleteBtn = comment.querySelector('.delete-btn');
+        const messageId = comment.getAttribute('data-id');
+        
         if (isAdmin && !deleteBtn) {
           const deleteButton = document.createElement('div');
           deleteButton.className = 'delete-btn';
           deleteButton.textContent = '🗑️';
-          deleteButton.onclick = () => deleteComment(deleteButton, comment.getAttribute('data-id'));
+          deleteButton.onclick = () => deleteComment(deleteButton, messageId);
           comment.querySelector('div').appendChild(deleteButton);
         } else if (!isAdmin && deleteBtn) {
           deleteBtn.remove();
@@ -107,12 +216,14 @@
       if (user === 'Admin' && pass === '1622005') {
         isAdmin = true;
         initAdminUI();
+        renderLevels();
       }
     }
 
     function logout() {
       isAdmin = false;
       initAdminUI();
+      renderLevels();
     }
 
     function addLevel() {
@@ -137,19 +248,17 @@
     }
 
     function deleteLevel(levelId) {
-      const levelIndex = levels.findIndex(l => l.id === levelId);
-      if (levelIndex !== -1) {
-        levels.splice(levelIndex, 1);
+      const index = levels.findIndex(l => l.id === levelId);
+      if (index !== -1) {
+        levels.splice(index, 1);
       }
-
       delete levelVotes[levelId];
       saveData('levels', levels);
       saveData('levelVotes', levelVotes);
+      renderLevels();
 
       deletedLevels.add(levelId);
       saveData('deletedLevels', [...deletedLevels]);
-
-      document.querySelector(`.level-card[data-id="${levelId}"]`)?.remove();
 
       const message = { type: 'delete_level', levelId };
       ws.send(JSON.stringify(message));
@@ -171,28 +280,95 @@
 
     function renderLevels() {
       const container = document.getElementById('levels-container');
-      container.innerHTML = '';
-
-      levels
+      container.innerHTML = levels
         .filter(level => !deletedLevels.has(level.id))
-        .forEach(level => {
+        .map(level => {
           const votes = levelVotes[level.id] || { up: 0, down: 0 };
-          const levelCard = document.createElement('div');
-          levelCard.className = 'level-card';
-          levelCard.setAttribute('data-id', level.id);
-          levelCard.innerHTML = `
-            <div>${level.name}</div>
-            <div class="vote-container">
-              <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
-              <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
-              ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+          return `
+            <div class="level-card" data-id="${level.id}">
+              <div>${level.name}</div>
+              <div class="vote-container">
+                <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
+                <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
+                ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+              </div>
             </div>
           `;
-          container.appendChild(levelCard);
-        });
+        }).join('');
     }
 
-    // ... (rest of the comment handling code remains the same)
+    function filterMessages(searchText) {
+      const searchTerm = searchText.toLowerCase().trim();
+      const comments = document.querySelectorAll('.comment');
+      
+      comments.forEach(comment => {
+        const content = comment.querySelector('.content').textContent.toLowerCase();
+        comment.style.display = content.includes(searchTerm) ? 'block' : 'none';
+      });
+    }
+
+    function handleMessage(message) {
+      if (deletedMessages.has(message.id)) return;
+      
+      const container = document.getElementById('comments-container');
+      const comment = document.createElement('div');
+      comment.className = 'comment';
+      comment.setAttribute('data-id', message.id);
+      comment.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="content">${message.content}</div>
+          <small class="timestamp">${message.time || ''}</small>
+          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` : ''}
+        </div>
+        <div class="vote-container">
+          <button onclick="voteComment(this, '${message.id}', 1)">👍 ${message.upvotes || 0}</button>
+          <button onclick="voteComment(this, '${message.id}', -1)">👎 ${message.downvotes || 0}</button>
+        </div>
+      `;
+      container.prepend(comment);
+      updateDeleteButtons();
+      
+      const currentSearch = document.getElementById('search-input').value;
+      filterMessages(currentSearch);
+    }
+
+    function deleteComment(element, messageId) {
+      if (!deletedMessages.has(messageId)) {
+        deletedMessages.add(messageId);
+        saveData('deletedMessages', [...deletedMessages]);
+        element.closest('.comment').remove();
+
+        const message = { type: 'delete_message', messageId };
+        ws.send(JSON.stringify(message));
+        logMessage('SENT', message);
+      }
+    }
+
+    function voteComment(button, messageId, value) {
+      if (userVotes[messageId]) return alert('You have already voted!');
+      const voteContainer = button.parentElement;
+      const upButton = voteContainer.querySelector('button:first-child');
+      const downButton = voteContainer.querySelector('button:last-child');
+
+      if (value === 1) {
+        const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
+        upButton.textContent = `👍 ${upCount}`;
+      } else {
+        const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
+        downButton.textContent = `👎 ${downCount}`;
+      }
+
+      userVotes[messageId] = true;
+      saveData('userVotes', userVotes);
+
+      const message = { type: 'vote_comment', messageId, value };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
+    }
+
+    function saveData(key, data) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
@@ -221,11 +397,53 @@
           renderLevels();
           break;
 
-        // ... (rest of the WebSocket handler cases remain the same)
+        case 'comment':
+          handleMessage(message);
+          break;
+
+        case 'vote_level':
+          levelVotes[message.levelId] = levelVotes[message.levelId] || { up: 0, down: 0 };
+          levelVotes[message.levelId][message.value === 1 ? 'up' : 'down']++;
+          saveData('levelVotes', levelVotes);
+          renderLevels();
+          break;
+
+        case 'vote_comment':
+          const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
+          if (comment) {
+            const upButton = comment.querySelector('.vote-container button:first-child');
+            const downButton = comment.querySelector('.vote-container button:last-child');
+            if (message.value === 1) {
+              const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
+              upButton.textContent = `👍 ${upCount}`;
+            } else {
+              const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
+              downButton.textContent = `👎 ${downCount}`;
+            }
+          }
+          break;
+
+        case 'delete_message':
+          deletedMessages.add(message.messageId);
+          document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
+          break;
       }
     };
 
-    // Initial render
+    window.addEventListener('message', (event) => {
+      if (event.origin !== 'https://turbowarp.org') return;
+      const message = {
+        type: 'comment',
+        content: event.data,
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        upvotes: 0,
+        downvotes: 0
+      };
+      ws.send(JSON.stringify(message));
+      logMessage('SENT', message);
+    });
+
     initAdminUI();
     renderLevels();
   </script>

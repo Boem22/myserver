@@ -86,11 +86,15 @@ wss.on('connection', (ws) => {
         break;
 
       case 'vote_comment':
-        // ... (existing comment voting logic)
+        const comment = data.messages.find(m => m.id === message.messageId);
+        if (comment) {
+          if (message.value === 1) comment.upvotes++;
+          else comment.downvotes++;
+        }
         break;
 
       case 'delete_message':
-        data.messages = data.messages.filter(m => String(m.id) !== String(message.messageId));
+        data.messages = data.messages.filter(m => m.id !== message.messageId);
         break;
 
       case 'delete_level':
