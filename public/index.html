@@ -319,17 +319,11 @@
           source: 'turbowarp'
         };
         
-        const tempComment = document.createElement('div');
-        tempComment.className = 'comment';
-        tempComment.setAttribute('data-id', `temp-${message.id}`);
-        tempComment.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="content">${message.content}</div>
-            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
-          </div>
-        `;
-        document.getElementById('comments-container').prepend(tempComment);
+        // Remove the temporary preview message
+        const tempComment = document.querySelector(`.comment[data-id="temp-${message.id}"]`);
+        if (tempComment) tempComment.remove();
 
+        // Send the message to the WebSocket server
         ws.send(JSON.stringify(message));
       } catch (err) {
         console.error('[TURBOWARP] Error:', err);
