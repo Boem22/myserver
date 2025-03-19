@@ -89,8 +89,9 @@ wss.on('connection', (ws, req) => {
 
       fs.writeFileSync(DATA_FILE, JSON.stringify(data));
       
+      // Broadcast the message to all clients (including the sender)
       wss.clients.forEach(client => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
+        if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(message));
         }
       });
