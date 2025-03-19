@@ -175,6 +175,7 @@
         isAdmin = true;
         initAdminUI();
         renderLevels();
+        renderComments();
       }
     }
 
@@ -182,6 +183,7 @@
       isAdmin = false;
       initAdminUI();
       renderLevels();
+      renderComments();
     }
 
     function addLevel() {
@@ -227,6 +229,12 @@
         `).join('');
 
       filterContent(document.getElementById('search-input').value);
+    }
+
+    function renderComments() {
+      const container = document.getElementById('comments-container');
+      container.innerHTML = ''; // Clear existing comments
+      data.messages.forEach(handleMessage); // Re-render all messages
     }
 
     function filterContent(searchTerm) {
@@ -317,6 +325,7 @@
         tempComment.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="content">${message.content}</div>
+            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
           </div>
         `;
         document.getElementById('comments-container').prepend(tempComment);
