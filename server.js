@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 8080;
 const DATA_FILE = path.join(__dirname, 'data.json');
 let connectionCount = 0;
 
+// Initialize data store
 let data = {
   messages: [],
   levels: [],
@@ -99,7 +100,8 @@ wss.on('connection', (ws, req) => {
           type: 'comment',
           content: rawData.toString(),
           id: Date.now(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          source: 'turbowarp'
         };
         
         if (!data.messages.some(m => m.id === message.id)) {

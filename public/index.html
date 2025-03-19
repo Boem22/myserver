@@ -247,13 +247,15 @@
       if (deletedMessages.has(message.id) || 
           document.querySelector(`.comment[data-id="${message.id}"]`)) return;
 
+      const isTurboWarp = message.source === 'turbowarp';
+      
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
       comment.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div class="content">${message.content}</div>
-          <small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>
+          ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
           ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
         </div>
       `;
@@ -303,7 +305,8 @@
           type: 'comment',
           content: String(event.data),
           id: Date.now(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          source: 'turbowarp'
         };
         
         const tempComment = document.createElement('div');
@@ -312,7 +315,6 @@
         tempComment.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="content">${message.content}</div>
-            <small class="timestamp">Sending...</small>
           </div>
         `;
         document.getElementById('comments-container').prepend(tempComment);
