@@ -7,12 +7,10 @@ const PORT = process.env.PORT || 8080;
 const DATA_FILE = path.join(__dirname, 'data.json');
 let connectionCount = 0;
 
-// Initialize data store
+// Initialize data store (levelVotes and userVotes removed)
 let data = {
   messages: [],
-  levels: [],
-  levelVotes: {},
-  userVotes: {}
+  levels: []
 };
 
 try {
@@ -28,7 +26,7 @@ const server = http.createServer((req, res) => {
   const extname = path.extname(filePath);
   const contentType = {
     '.html': 'text/html',
-    '.ttf': 'font/ttf',
+    '.ttf': 'font/ttf'
   }[extname] || 'text/plain';
 
   fs.readFile(filePath, (err, content) => {
@@ -56,6 +54,7 @@ wss.on('connection', (ws, req) => {
     console.error(`[WS] Error from ${clientIP}:`, err.message);
   });
 
+  // Send initial data to the client
   ws.send(JSON.stringify({
     type: 'init',
     messages: data.messages,
@@ -65,7 +64,6 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (rawData) => {
     try {
       let message = JSON.parse(rawData.toString());
-      
       if (!message.type) return;
 
       switch (message.type) {
@@ -88,7 +86,7 @@ wss.on('connection', (ws, req) => {
       }
 
       fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-      
+
       // Broadcast the message to all clients (including the sender)
       wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -104,11 +102,9 @@ wss.on('connection', (ws, req) => {
           timestamp: Date.now(),
           source: 'turbowarp'
         };
-        
         if (!data.messages.some(m => m.id === message.id)) {
           data.messages.push(message);
           fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-          
           wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify(message));
