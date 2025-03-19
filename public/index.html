@@ -160,23 +160,10 @@
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
 
-    // WebSocket logging
-    ws.onerror = (error) => {
-      console.error('[WebSocket] Error:', error);
-    };
-
-    ws.onclose = (event) => {
-      console.warn('[WebSocket] Closed:', event);
-    };
-
-    ws.onopen = () => {
-      console.log('[WebSocket] Connection established');
-    };
-
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
-      document.querySelectorAll('.delete-level-btn, .delete-btn').forEach(btn => {
+      document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.style.display = isAdmin ? 'inline-block' : 'none';
       });
     }
@@ -260,6 +247,8 @@
       if (deletedMessages.has(message.id) || 
           document.querySelector(`.comment[data-id="${message.id}"]`)) return;
 
+      const showDelete = isAdmin || message.isAdminControlled;
+      
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
@@ -267,12 +256,11 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div class="content">${message.content}</div>
           <small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>
-          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
+          ${showDelete ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
         </div>
       `;
       
-      const container = document.getElementById('comments-container');
-      container.prepend(comment);
+      document.getElementById('comments-container').prepend(comment);
       filterContent(document.getElementById('search-input').value);
     }
 
@@ -289,9 +277,6 @@
       
       switch (message.type) {
         case 'init':
-          document.getElementById('levels-container').innerHTML = '';
-          document.getElementById('comments-container').innerHTML = '';
-          levels.length = 0;
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
           renderLevels();
           message.messages.forEach(handleMessage);
@@ -311,50 +296,33 @@
     };
 
     window.addEventListener('message', (event) => {
-      console.log('[TurboWarp] Received message:', event);
-      
-      if (event.origin !== 'https://turbowarp.org') {
-        console.warn('Blocked message from untrusted origin:', event.origin);
-        return;
-      }
+      if (event.origin !== 'https://turbowarp.org') return;
       
       try {
-        console.log('[TurboWarp] Raw data:', event.data);
-        
         const message = {
           type: 'comment',
           content: String(event.data),
           id: Date.now(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          source: 'turbowarp',
+          isAdminControlled: true
         };
-
-        console.log('[TurboWarp] Formatted message:', message);
         
-        // Add temporary preview
-        const tempId = `temp-${message.id}`;
-        if (!document.querySelector(`[data-id="${tempId}"]`)) {
-          const tempComment = document.createElement('div');
-          tempComment.className = 'comment';
-          tempComment.setAttribute('data-id', tempId);
-          tempComment.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div class="content">${message.content}</div>
-              <small class="timestamp">Sending...</small>
-            </div>
-          `;
-          tempComment.style.opacity = '0.7';
-          document.getElementById('comments-container').prepend(tempComment);
-        }
-
-        if (ws.readyState !== WebSocket.OPEN) {
-          console.error('WebSocket not ready. State:', ws.readyState);
-          return;
-        }
+        // Temporary preview
+        const tempComment = document.createElement('div');
+        tempComment.className = 'comment';
+        tempComment.setAttribute('data-id', `temp-${message.id}`);
+        tempComment.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="content">${message.content}</div>
+            <small class="timestamp">Sending...</small>
+          </div>
+        `;
+        document.getElementById('comments-container').prepend(tempComment);
 
         ws.send(JSON.stringify(message));
-        console.log('[TurboWarp] Message sent successfully');
       } catch (err) {
-        console.error('[TurboWarp] Error handling message:', err);
+        console.error('[TURBOWARP] Error:', err);
       }
     });
 
