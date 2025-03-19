@@ -5,6 +5,7 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 const DATA_FILE = path.join(__dirname, 'data.json');
+let connectionCount = 0; // Track active connections
 
 // Initialize data store
 let data = {
@@ -14,10 +15,10 @@ let data = {
   userVotes: {}
 };
 
-// Load existing data
+// Enhanced data loading
 try {
   data = JSON.parse(fs.readFileSync(DATA_FILE));
-  console.log('[SERVER] Loaded existing data from', DATA_FILE);
+  console.log(`[SERVER] Loaded ${data.messages.length} messages and ${data.levels.length} levels`);
 } catch (err) {
   console.error('[SERVER] Data load error:', err.message);
   fs.writeFileSync(DATA_FILE, JSON.stringify(data));
@@ -26,7 +27,8 @@ try {
 
 // Create HTTP server
 const server = http.createServer((req, res) => {
-  console.log(`[HTTP] ${req.method} ${req.url}`);
+  console.log(`[HTTP] ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
+  
   const filePath = path.join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
   const extname = path.extname(filePath);
   const contentType = {
@@ -47,14 +49,23 @@ const server = http.createServer((req, res) => {
   });
 });
 
-// WebSocket server
+// WebSocket server with connection tracking
 const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws) => {
-  console.log('[WS] New connection');
-  
-  ws.on('close', () => console.log('[WS] Connection closed'));
-  ws.on('error', (err) => console.error('[WS] Error:', err));
+wss.on('connection', (ws, req) => {
+  connectionCount++;
+  const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'];
+  console.log(`[WS] New connection from ${clientIP} (${userAgent}). Active connections: ${connectionCount}`);
+
+  ws.on('close', () => {
+    connectionCount--;
+    console.log(`[WS] Connection closed from ${clientIP}. Remaining: ${connectionCount}`);
+  });
+
+  ws.on('error', (err) => {
+    console.error(`[WS] Error from ${clientIP}:`, err.message);
+  });
 
   // Send initial state
   try {
@@ -63,65 +74,59 @@ wss.on('connection', (ws) => {
       messages: data.messages,
       levels: data.levels
     }));
-    console.log('[WS] Sent initial state');
+    console.log(`[WS] Sent initial state to ${clientIP}`);
   } catch (err) {
-    console.error('[WS] Initial state error:', err);
+    console.error(`[WS] Error sending initial state to ${clientIP}:`, err.message);
   }
 
   ws.on('message', (rawData) => {
     try {
-      console.log('[WS] Raw message received:', rawData.toString());
-      
-      const message = typeof rawData === 'string' 
-        ? JSON.parse(rawData)
-        : JSON.parse(rawData.toString());
+      const message = JSON.parse(rawData.toString());
+      console.log(`[WS] Received ${message.type} from ${clientIP}`);
 
-      console.log('[WS] Parsed message:', message);
-
-      if (!message.type) {
-        console.warn('[WS] Missing message type');
-        throw new Error('Invalid message format');
+      // Specific logging for TurboWarp messages
+      if (message.type === 'comment') {
+        console.log('[TURBOWARP] Message details:', {
+          id: message.id,
+          content: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''), // Truncate long messages
+          timestamp: new Date(message.timestamp).toISOString(),
+          client: clientIP
+        });
       }
 
       // Message processing
-      let action = 'Unknown';
+      let action = 'processed';
       try {
         switch (message.type) {
           case 'comment':
-            action = 'New comment';
             if (!data.messages.some(m => m.id === message.id)) {
               data.messages.push(message);
-              console.log(`[WS] Stored new comment (ID: ${message.id})`);
+              action = 'stored';
             }
             break;
 
           case 'new_level':
-            action = 'New level';
             if (!data.levels.some(l => l.id === message.level.id)) {
               data.levels.push(message.level);
-              console.log(`[WS] Stored new level (ID: ${message.level.id})`);
+              action = 'stored';
             }
             break;
 
           case 'delete_message':
-            action = 'Delete message';
             data.messages = data.messages.filter(m => m.id !== message.messageId);
-            console.log(`[WS] Deleted message (ID: ${message.messageId})`);
             break;
 
           case 'delete_level':
-            action = 'Delete level';
             data.levels = data.levels.filter(l => l.id !== message.levelId);
-            console.log(`[WS] Deleted level (ID: ${message.levelId})`);
             break;
 
           default:
-            console.warn('[WS] Unknown message type:', message.type);
+            console.warn(`[WS] Unknown message type from ${clientIP}:`, message.type);
         }
 
         // Save data
         fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-        console.log('[WS] Data saved successfully');
+        console.log(`[DATA] ${action} ${message.type} from ${clientIP}`);
 
         // Broadcast to all clients
         wss.clients.forEach(client => {
@@ -129,20 +134,35 @@ wss.on('connection', (ws) => {
             client.send(JSON.stringify(message));
           }
         });
-        console.log(`[WS] Broadcasted ${message.type} to ${wss.clients.size} clients`);
+        console.log(`[BROADCAST] Sent ${message.type} to ${wss.clients.size} clients`);
 
       } catch (processError) {
-        console.error('[WS] Processing error:', processError);
+        console.error(`[PROCESS] Error handling ${message.type} from ${clientIP}:`, processError);
       }
 
     } catch (parseError) {
-      console.error('[WS] Parse error:', parseError.message);
-      console.error('[WS] Original data:', rawData.toString());
+      console.error(`[PARSE] Error from ${clientIP}:`, {
+        error: parseError.message,
+        rawData: rawData.toString().substring(0, 100) + (rawData.length > 100 ? '...' : '')
+      });
     }
   });
 });
 
+// Add connection logging endpoint
+server.on('request', (req, res) => {
+  if (req.url === '/log' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      console.log('[CLIENT]', body);
+      res.end();
+    });
+  }
+});
+
 server.listen(PORT, () => {
   console.log(`[SERVER] Running on port ${PORT}`);
-  console.log(`[SERVER] WebSocket: wss://localhost:${PORT}`);
+  console.log(`[SERVER] WebSocket endpoint: wss://localhost:${PORT}`);
+  console.log(`[SERVER] Active connections: ${connectionCount}`);
 });
