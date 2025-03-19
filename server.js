@@ -6,20 +6,19 @@ const path = require('path');
 const PORT = process.env.PORT || 8080;
 const DATA_FILE = path.join(__dirname, 'data.json');
 
-// Initialize data store
 let data = {
   messages: [],
-  levels: []
+  levels: [],
+  levelVotes: {},
+  userVotes: {}
 };
 
-// Load existing data
 try {
   data = JSON.parse(fs.readFileSync(DATA_FILE));
 } catch (err) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data));
 }
 
-// Create HTTP server
 const server = http.createServer((req, res) => {
   const filePath = path.join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
   const extname = path.extname(filePath);
@@ -39,26 +38,23 @@ const server = http.createServer((req, res) => {
   });
 });
 
-// WebSocket server
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-  // Send initial state
   ws.send(JSON.stringify({
     type: 'init',
     messages: data.messages,
     levels: data.levels
   }));
 
-  // Handle messages
   ws.on('message', (rawData) => {
     try {
-      const message = JSON.parse(rawData.toString());
-      
-      // Validate message format
+      const message = typeof rawData === 'string' 
+        ? JSON.parse(rawData)
+        : JSON.parse(rawData.toString());
+
       if (!message.type) throw new Error('Invalid message format');
       
-      // Process message
       switch (message.type) {
         case 'comment':
           data.messages.push(message);
@@ -76,23 +72,19 @@ wss.on('connection', (ws) => {
           break;
       }
 
-      // Persist data
       fs.writeFileSync(DATA_FILE, JSON.stringify(data));
       
-      // Broadcast to all clients
       wss.clients.forEach(client => {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(message));
         }
       });
     } catch (err) {
-      console.error('Message handling error:', err);
+      console.error('Message handling error:', err.message);
     }
   });
 });
 
-// Start server
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket: wss://localhost:${PORT}`);
 });

@@ -293,12 +293,20 @@
 
     window.addEventListener('message', (event) => {
       if (event.origin !== 'https://turbowarp.org') return;
-      ws.send(JSON.stringify({
-        type: 'comment',
-        content: event.data,
-        id: Date.now(),
-        timestamp: Date.now()
-      }));
+      
+      try {
+        // Properly format TurboWarp messages as JSON
+        const message = {
+          type: 'comment',
+          content: String(event.data),
+          id: Date.now(),
+          timestamp: Date.now()
+        };
+        
+        ws.send(JSON.stringify(message));
+      } catch (err) {
+        console.error('Error handling TurboWarp message:', err);
+      }
     });
 
     initAdminUI();
