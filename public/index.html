@@ -255,8 +255,10 @@
       comment.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div class="content">${message.content}</div>
-          ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
-          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
+            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
+          </div>
         </div>
       `;
       
