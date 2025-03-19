@@ -250,7 +250,7 @@
           </div>
         </div>
       `;
-      container.prepend(comment);
+      document.getElementById('comments-container').prepend(comment);
     }
 
     function updateDeleteButtons() {
@@ -275,14 +275,13 @@
 
     function handleMessage(message) {
       if (deletedMessages.has(message.id)) return;
-      
-      // Update local storage
-      if (!messages.some(m => m.id === message.id)) {
+
+      const existingIndex = messages.findIndex(m => m.id === message.id);
+      if (existingIndex === -1) {
         messages.push(message);
         localStorage.setItem('messages', JSON.stringify(messages));
       }
-      
-      // Update UI
+
       if (!document.querySelector(`.comment[data-id="${message.id}"]`)) {
         createCommentElement(message);
         updateDeleteButtons();
@@ -295,14 +294,12 @@
       document.querySelector(`.comment[data-id="${messageId}"]`)?.remove();
       ws.send(JSON.stringify({ type: 'delete_message', messageId }));
       
-      // Update local messages
       messages = messages.filter(m => m.id !== messageId);
       localStorage.setItem('messages', JSON.stringify(messages));
     }
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      console.log('[WS IN] Received:', message);
       
       switch (message.type) {
         case 'init':
@@ -338,30 +335,14 @@
           timestamp: Date.now(),
           source: 'turbowarp'
         };
-        
-        // Remove temporary preview if exists
-        const tempComment = document.querySelector(`.comment[data-id="temp-${message.id}"]`);
-        if (tempComment) tempComment.remove();
 
-        // Add to local messages immediately
-        messages.push(message);
-        localStorage.setItem('messages', JSON.stringify(messages));
-        
-        // Create temporary preview
-        const comment = document.createElement('div');
-        comment.className = 'comment';
-        comment.setAttribute('data-id', `temp-${message.id}`);
-        comment.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="content">${message.content}</div>
-            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
-          </div>
-        `;
-        document.getElementById('comments-container').prepend(comment);
-        updateDeleteButtons();
-
-        // Send to server
+        // Handle immediately
+        handleMessage(message);
         ws.send(JSON.stringify(message));
+
+        // Cleanup any temporary elements
+        const tempElements = document.querySelectorAll(`[data-id^="temp-"]`);
+        tempElements.forEach(el => el.remove());
       } catch (err) {
         console.error('[TURBOWARP] Error:', err);
       }
