@@ -159,6 +159,7 @@
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
+    let messages = []; // Global array for all messages
 
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
@@ -175,7 +176,7 @@
         isAdmin = true;
         initAdminUI();
         renderLevels();
-        renderComments();
+        renderComments(); // Re-render all comments with admin controls
       }
     }
 
@@ -183,7 +184,7 @@
       isAdmin = false;
       initAdminUI();
       renderLevels();
-      renderComments();
+      renderComments(); // Re-render all comments without admin controls
     }
 
     function addLevel() {
@@ -231,10 +232,40 @@
       filterContent(document.getElementById('search-input').value);
     }
 
+    // Re-render all comments from the global messages array
     function renderComments() {
       const container = document.getElementById('comments-container');
-      container.innerHTML = ''; // Clear existing comments
-      data.messages.forEach(handleMessage); // Re-render all messages
+      container.innerHTML = '';
+      messages.forEach(message => {
+        if (!deletedMessages.has(message.id)) {
+          container.insertAdjacentHTML('afterbegin', createCommentHTML(message));
+        }
+      });
+      filterContent(document.getElementById('search-input').value);
+    }
+
+    // Helper function to build comment HTML based on current admin mode
+    function createCommentHTML(message) {
+      const isTurboWarp = message.source === 'turbowarp';
+      return `
+        <div class="comment" data-id="${message.id}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="content">${message.content}</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
+              ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render a single new comment when received
+    function renderNewComment(message) {
+      if (deletedMessages.has(message.id)) return;
+      const container = document.getElementById('comments-container');
+      container.insertAdjacentHTML('afterbegin', createCommentHTML(message));
+      filterContent(document.getElementById('search-input').value);
     }
 
     function filterContent(searchTerm) {
@@ -249,29 +280,6 @@
         const name = level.querySelector('div').textContent.toLowerCase().trim();
         level.style.display = name.includes(term) ? 'flex' : 'none';
       });
-    }
-
-    function handleMessage(message) {
-      if (deletedMessages.has(message.id) || 
-          document.querySelector(`.comment[data-id="${message.id}"]`)) return;
-
-      const isTurboWarp = message.source === 'turbowarp';
-      
-      const comment = document.createElement('div');
-      comment.className = 'comment';
-      comment.setAttribute('data-id', message.id);
-      comment.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div class="content">${message.content}</div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
-            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
-          </div>
-        </div>
-      `;
-      
-      document.getElementById('comments-container').prepend(comment);
-      filterContent(document.getElementById('search-input').value);
     }
 
     function deleteComment(messageId) {
@@ -289,12 +297,13 @@
         case 'init':
           levels.length = 0;
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
-          document.getElementById('comments-container').innerHTML = '';
+          messages = message.messages;
           renderLevels();
-          message.messages.forEach(handleMessage);
+          renderComments();
           break;
         case 'comment':
-          handleMessage(message);
+          messages.push(message);
+          renderNewComment(message);
           break;
         case 'delete_level':
           deletedLevels.add(message.levelId);
@@ -309,7 +318,6 @@
 
     window.addEventListener('message', (event) => {
       if (event.origin !== 'https://turbowarp.org') return;
-      
       try {
         const message = {
           type: 'comment',
@@ -318,12 +326,10 @@
           timestamp: Date.now(),
           source: 'turbowarp'
         };
-        
-        // Remove the temporary preview message
+
         const tempComment = document.querySelector(`.comment[data-id="temp-${message.id}"]`);
         if (tempComment) tempComment.remove();
 
-        // Send the message to the WebSocket server
         ws.send(JSON.stringify(message));
       } catch (err) {
         console.error('[TURBOWARP] Error:', err);
