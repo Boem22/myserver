@@ -51,7 +51,7 @@
       border-radius: 5px;
     }
 
-    #search-container {
+    #universal-search {
       margin: 15px 0;
       text-align: center;
     }
@@ -63,6 +63,7 @@
       color: #fef4b8;
       border: 1px solid #666;
       border-radius: 3px;
+      margin-bottom: 10px;
     }
 
     #level-input-container input,
@@ -84,7 +85,17 @@
       background-color: #2d2d2d;
     }
 
-    .level-card,
+    .level-card {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background-color: #3a3a3a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     .comment {
       margin: 10px 0;
       padding: 10px;
@@ -117,12 +128,14 @@
     <button id="logout-btn" class="hidden" onclick="logout()">Logout</button>
   </div>
 
-  <div id="game-container">
-    <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen="" width="720" height="500"></iframe>
+  <div id="universal-search">
+    <input type="text" id="search-input" 
+           placeholder="Search messages and levels..."
+           oninput="filterContent(this.value)">
   </div>
 
-  <div id="search-container">
-    <input type="text" id="search-input" placeholder="Search messages..." oninput="filterMessages(this.value)" />
+  <div id="game-container">
+    <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen="" width="720" height="500"></iframe>
   </div>
 
   <div id="level-input-container">
@@ -140,14 +153,10 @@
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
 
-    function logAction(action, details) {
-      console.log(`[ACTION] ${new Date().toISOString()} - ${action}:`, details);
-    }
-
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
-      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
+      document.querySelectorAll('.delete-level-btn, .delete-btn').forEach(btn => {
         btn.style.display = isAdmin ? 'inline-block' : 'none';
       });
     }
@@ -198,24 +207,35 @@
 
     function renderLevels() {
       const container = document.getElementById('levels-container');
-      container.innerHTML = levels
+      const sortedLevels = [...levels]
         .filter(level => !deletedLevels.has(level.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      container.innerHTML = sortedLevels
         .map(level => `
           <div class="level-card" data-id="${level.id}">
             <div>${level.name}</div>
-            ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+            ${isAdmin ? `<button class="delete-level-btn" onclick="deleteLevel(${level.id})">Delete</button>` : ''}
           </div>
         `).join('');
+
+      const currentSearch = document.getElementById('search-input').value;
+      filterContent(currentSearch);
     }
 
-    function filterMessages(searchText) {
-      const term = searchText.toLowerCase().trim();
-      const comments = document.querySelectorAll('.comment');
+    function filterContent(searchTerm) {
+      const term = searchTerm.toLowerCase().trim();
       
-      comments.forEach(comment => {
-        const contentElement = comment.querySelector('.content');
-        const content = contentElement ? contentElement.textContent.toLowerCase() : '';
+      // Filter comments
+      document.querySelectorAll('.comment').forEach(comment => {
+        const content = comment.querySelector('.content').textContent.toLowerCase();
         comment.style.display = content.includes(term) ? 'block' : 'none';
+      });
+
+      // Filter levels
+      document.querySelectorAll('.level-card').forEach(level => {
+        const name = level.querySelector('div').textContent.toLowerCase().trim();
+        level.style.display = name.includes(term) ? 'flex' : 'none';
       });
     }
 
@@ -237,7 +257,7 @@
       container.prepend(comment);
       
       const currentSearch = document.getElementById('search-input').value;
-      filterMessages(currentSearch);
+      filterContent(currentSearch);
     }
 
     function deleteComment(messageId) {
