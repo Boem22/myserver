@@ -81,14 +81,30 @@ wss.on('connection', (ws, req) => {
 
   ws.on('message', (rawData) => {
     try {
-      const message = JSON.parse(rawData.toString());
+      let message;
+      
+      // Try to parse as JSON first
+      try {
+        message = JSON.parse(rawData.toString());
+      } catch (jsonError) {
+        // If JSON parsing fails, treat as TurboWarp message
+        console.log('[TURBOWARP] Received raw message:', rawData.toString());
+        message = {
+          type: 'comment',
+          content: rawData.toString(),
+          id: Date.now(),
+          timestamp: Date.now(),
+          source: 'turbowarp'
+        };
+      }
+
       console.log(`[WS] Received ${message.type} from ${clientIP}`);
 
       // Specific logging for TurboWarp messages
-      if (message.type === 'comment') {
+      if (message.source === 'turbowarp') {
         console.log('[TURBOWARP] Message details:', {
           id: message.id,
-          content: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''), // Truncate long messages
+          content: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
           timestamp: new Date(message.timestamp).toISOString(),
           client: clientIP
         });
