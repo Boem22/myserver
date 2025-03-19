@@ -140,10 +140,16 @@
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
 
+    function logAction(action, details) {
+      console.log(`[ACTION] ${new Date().toISOString()} - ${action}:`, details);
+    }
+
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
-      document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = isAdmin ? 'block' : 'none');
+      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
+        btn.style.display = isAdmin ? 'inline-block' : 'none';
+      });
     }
 
     function login() {
@@ -171,18 +177,23 @@
         localStorage.setItem('levels', JSON.stringify(levels));
         renderLevels();
         levelInput.value = '';
-        ws.send(JSON.stringify({ type: 'new_level', level: { id: levelId, name: levelCode }}));
+        ws.send(JSON.stringify({ 
+          type: 'new_level', 
+          level: { id: levelId, name: levelCode }
+        }));
       }
     }
 
     function deleteLevel(levelId) {
       const index = levels.findIndex(l => l.id === levelId);
-      if (index !== -1) levels.splice(index, 1);
-      localStorage.setItem('levels', JSON.stringify(levels));
-      deletedLevels.add(levelId);
-      localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
-      renderLevels();
-      ws.send(JSON.stringify({ type: 'delete_level', levelId }));
+      if (index !== -1) {
+        levels.splice(index, 1);
+        localStorage.setItem('levels', JSON.stringify(levels));
+        deletedLevels.add(levelId);
+        localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
+        renderLevels();
+        ws.send(JSON.stringify({ type: 'delete_level', levelId }));
+      }
     }
 
     function renderLevels() {
@@ -190,7 +201,7 @@
       container.innerHTML = levels
         .filter(level => !deletedLevels.has(level.id))
         .map(level => `
-          <div class="level-card">
+          <div class="level-card" data-id="${level.id}">
             <div>${level.name}</div>
             ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
           </div>
@@ -199,7 +210,9 @@
 
     function filterMessages(searchText) {
       const term = searchText.toLowerCase().trim();
-      document.querySelectorAll('.comment').forEach(comment => {
+      const comments = document.querySelectorAll('.comment');
+      
+      comments.forEach(comment => {
         const content = comment.querySelector('.content').textContent.toLowerCase();
         comment.style.display = content.includes(term) ? 'block' : 'none';
       });
@@ -210,15 +223,20 @@
       
       const comment = document.createElement('div');
       comment.className = 'comment';
+      comment.setAttribute('data-id', message.id);
       comment.innerHTML = `
-        <div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
           <div class="content">${message.content}</div>
           <small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>
           ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
         </div>
       `;
-      document.getElementById('comments-container').prepend(comment);
-      filterMessages(document.getElementById('search-input').value);
+      
+      const container = document.getElementById('comments-container');
+      container.prepend(comment);
+      
+      const currentSearch = document.getElementById('search-input').value;
+      filterMessages(currentSearch);
     }
 
     function deleteComment(messageId) {
@@ -230,6 +248,8 @@
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      console.log('[WS IN] Received:', message);
+      
       switch (message.type) {
         case 'init':
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
