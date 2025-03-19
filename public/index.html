@@ -213,7 +213,8 @@
       const comments = document.querySelectorAll('.comment');
       
       comments.forEach(comment => {
-        const content = comment.querySelector('.content').textContent.toLowerCase();
+        const contentElement = comment.querySelector('.content');
+        const content = contentElement ? contentElement.textContent.toLowerCase() : '';
         comment.style.display = content.includes(term) ? 'block' : 'none';
       });
     }
