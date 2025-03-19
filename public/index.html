@@ -157,14 +157,15 @@
     const ws = new WebSocket(window.location.origin.replace('http', 'ws'));
     let isAdmin = false;
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
-    let messages = JSON.parse(localStorage.getItem('messages')) || [];
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
 
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
-      renderComments();
+      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
+        btn.style.display = isAdmin ? 'inline-block' : 'none';
+      });
     }
 
     function login() {
@@ -173,12 +174,16 @@
       if (user === 'Admin' && pass === '1622005') {
         isAdmin = true;
         initAdminUI();
+        renderLevels();
+        renderComments();
       }
     }
 
     function logout() {
       isAdmin = false;
       initAdminUI();
+      renderLevels();
+      renderComments();
     }
 
     function addLevel() {
@@ -228,35 +233,8 @@
 
     function renderComments() {
       const container = document.getElementById('comments-container');
-      container.innerHTML = '';
-      messages
-        .filter(message => !deletedMessages.has(message.id))
-        .forEach(message => createCommentElement(message));
-      updateDeleteButtons();
-      filterContent(document.getElementById('search-input').value);
-    }
-
-    function createCommentElement(message) {
-      const isTurboWarp = message.source === 'turbowarp';
-      const comment = document.createElement('div');
-      comment.className = 'comment';
-      comment.setAttribute('data-id', message.id);
-      comment.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div class="content">${message.content}</div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
-            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
-          </div>
-        </div>
-      `;
-      document.getElementById('comments-container').prepend(comment);
-    }
-
-    function updateDeleteButtons() {
-      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
-        btn.style.display = isAdmin ? 'inline-block' : 'none';
-      });
+      container.innerHTML = ''; // Clear existing comments
+      data.messages.forEach(handleMessage); // Re-render all messages
     }
 
     function filterContent(searchTerm) {
@@ -274,18 +252,26 @@
     }
 
     function handleMessage(message) {
-      if (deletedMessages.has(message.id)) return;
+      if (deletedMessages.has(message.id) || 
+          document.querySelector(`.comment[data-id="${message.id}"]`)) return;
 
-      const existingIndex = messages.findIndex(m => m.id === message.id);
-      if (existingIndex === -1) {
-        messages.push(message);
-        localStorage.setItem('messages', JSON.stringify(messages));
-      }
-
-      if (!document.querySelector(`.comment[data-id="${message.id}"]`)) {
-        createCommentElement(message);
-        updateDeleteButtons();
-      }
+      const isTurboWarp = message.source === 'turbowarp';
+      
+      const comment = document.createElement('div');
+      comment.className = 'comment';
+      comment.setAttribute('data-id', message.id);
+      comment.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="content">${message.content}</div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
+            ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('comments-container').prepend(comment);
+      filterContent(document.getElementById('search-input').value);
     }
 
     function deleteComment(messageId) {
@@ -293,22 +279,19 @@
       localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
       document.querySelector(`.comment[data-id="${messageId}"]`)?.remove();
       ws.send(JSON.stringify({ type: 'delete_message', messageId }));
-      
-      messages = messages.filter(m => m.id !== messageId);
-      localStorage.setItem('messages', JSON.stringify(messages));
     }
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      console.log('[WS IN] Received:', message);
       
       switch (message.type) {
         case 'init':
           levels.length = 0;
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
-          messages = message.messages.filter(m => !deletedMessages.has(m.id));
-          localStorage.setItem('messages', JSON.stringify(messages));
+          document.getElementById('comments-container').innerHTML = '';
           renderLevels();
-          renderComments();
+          message.messages.forEach(handleMessage);
           break;
         case 'comment':
           handleMessage(message);
@@ -335,23 +318,20 @@
           timestamp: Date.now(),
           source: 'turbowarp'
         };
+        
+        // Remove the temporary preview message
+        const tempComment = document.querySelector(`.comment[data-id="temp-${message.id}"]`);
+        if (tempComment) tempComment.remove();
 
-        // Handle immediately
-        handleMessage(message);
+        // Send the message to the WebSocket server
         ws.send(JSON.stringify(message));
-
-        // Cleanup any temporary elements
-        const tempElements = document.querySelectorAll(`[data-id^="temp-"]`);
-        tempElements.forEach(el => el.remove());
       } catch (err) {
         console.error('[TURBOWARP] Error:', err);
       }
     });
 
-    // Initial load
     initAdminUI();
     renderLevels();
-    renderComments();
   </script>
 </body>
 </html>

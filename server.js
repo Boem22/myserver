@@ -10,7 +10,9 @@ let connectionCount = 0;
 // Initialize data store
 let data = {
   messages: [],
-  levels: []
+  levels: [],
+  levelVotes: {},
+  userVotes: {}
 };
 
 try {
@@ -64,10 +66,7 @@ wss.on('connection', (ws, req) => {
     try {
       let message = JSON.parse(rawData.toString());
       
-      // Preserve TurboWarp source
-      if (message.content && rawData.toString().includes('turbowarp')) {
-        message.source = 'turbowarp';
-      }
+      if (!message.type) return;
 
       switch (message.type) {
         case 'comment':
@@ -88,7 +87,7 @@ wss.on('connection', (ws, req) => {
           break;
       }
 
-      fs.writeFileSync(DATA_FILE, JSON.stringify(data)));
+      fs.writeFileSync(DATA_FILE, JSON.stringify(data));
       
       wss.clients.forEach(client => {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
@@ -96,7 +95,28 @@ wss.on('connection', (ws, req) => {
         }
       });
     } catch (err) {
-      console.error('[WS] Message handling failed:', err);
+      try {
+        const message = {
+          type: 'comment',
+          content: rawData.toString(),
+          id: Date.now(),
+          timestamp: Date.now(),
+          source: 'turbowarp'
+        };
+        
+        if (!data.messages.some(m => m.id === message.id)) {
+          data.messages.push(message);
+          fs.writeFileSync(DATA_FILE, JSON.stringify(data));
+          
+          wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(message));
+            }
+          });
+        }
+      } catch (parseError) {
+        console.error('[WS] Message handling failed:', parseError);
+      }
     }
   });
 });
