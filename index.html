@@ -30,21 +30,12 @@
 
     #admin-login input,
     #admin-login button {
-      font-family: 'Pixeled', sans-serif;
       padding: 5px;
       margin: 5px 0;
       background-color: #444;
       color: #fef4b8;
       border: 1px solid #666;
       border-radius: 3px;
-    }
-
-    #admin-login button {
-      cursor: pointer;
-    }
-
-    #admin-login button:hover {
-      background-color: #555;
     }
 
     .hidden {
@@ -68,7 +59,6 @@
     #search-input {
       width: 300px;
       padding: 8px;
-      font-family: 'Pixeled', sans-serif;
       background-color: #444;
       color: #fef4b8;
       border: 1px solid #666;
@@ -77,21 +67,12 @@
 
     #level-input-container input,
     #level-input-container button {
-      font-family: 'Pixeled', sans-serif;
       padding: 5px;
       margin: 5px 0;
       background-color: #444;
       color: #fef4b8;
       border: 1px solid #666;
       border-radius: 3px;
-    }
-
-    #level-input-container button {
-      cursor: pointer;
-    }
-
-    #level-input-container button:hover {
-      background-color: #555;
     }
 
     #levels-container,
@@ -110,26 +91,6 @@
       border: 1px solid #444;
       border-radius: 5px;
       background-color: #3a3a3a;
-    }
-
-    .vote-container {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .vote-container button {
-      font-family: 'Pixeled', sans-serif;
-      padding: 5px;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-
-    .vote-container button:hover {
-      background-color: #555;
     }
 
     .delete-btn,
@@ -170,44 +131,19 @@
   </div>
 
   <div id="levels-container"></div>
-
   <div id="comments-container"></div>
 
   <script>
     const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
     let isAdmin = false;
-
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
-    const levelVotes = JSON.parse(localStorage.getItem('levelVotes')) || {};
-    const userVotes = JSON.parse(localStorage.getItem('userVotes')) || {};
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
-
-    function logMessage(direction, message) {
-      console.log(`[${direction}]`, message);
-    }
 
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
-      updateDeleteButtons();
-    }
-
-    function updateDeleteButtons() {
-      document.querySelectorAll('.comment').forEach(comment => {
-        const deleteBtn = comment.querySelector('.delete-btn');
-        const messageId = comment.getAttribute('data-id');
-        
-        if (isAdmin && !deleteBtn) {
-          const deleteButton = document.createElement('div');
-          deleteButton.className = 'delete-btn';
-          deleteButton.textContent = '🗑️';
-          deleteButton.onclick = () => deleteComment(deleteButton, messageId);
-          comment.querySelector('div').appendChild(deleteButton);
-        } else if (!isAdmin && deleteBtn) {
-          deleteBtn.remove();
-        }
-      });
+      document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = isAdmin ? 'block' : 'none');
     }
 
     function login() {
@@ -232,197 +168,81 @@
       if (levelCode) {
         const levelId = Date.now();
         levels.push({ id: levelId, name: levelCode });
-        levelVotes[levelId] = { up: 0, down: 0 };
-        saveData('levels', levels);
-        saveData('levelVotes', levelVotes);
+        localStorage.setItem('levels', JSON.stringify(levels));
         renderLevels();
         levelInput.value = '';
-
-        const message = {
-          type: 'new_level',
-          level: { id: levelId, name: levelCode }
-        };
-        ws.send(JSON.stringify(message));
-        logMessage('SENT', message);
+        ws.send(JSON.stringify({ type: 'new_level', level: { id: levelId, name: levelCode }}));
       }
     }
 
     function deleteLevel(levelId) {
       const index = levels.findIndex(l => l.id === levelId);
-      if (index !== -1) {
-        levels.splice(index, 1);
-      }
-      delete levelVotes[levelId];
-      saveData('levels', levels);
-      saveData('levelVotes', levelVotes);
-      renderLevels();
-
+      if (index !== -1) levels.splice(index, 1);
+      localStorage.setItem('levels', JSON.stringify(levels));
       deletedLevels.add(levelId);
-      saveData('deletedLevels', [...deletedLevels]);
-
-      const message = { type: 'delete_level', levelId };
-      ws.send(JSON.stringify(message));
-      logMessage('SENT', message);
-    }
-
-    function voteLevel(levelId, value) {
-      if (userVotes[levelId]) return alert('You have already voted!');
-      levelVotes[levelId][value === 1 ? 'up' : 'down']++;
-      userVotes[levelId] = true;
-      saveData('levelVotes', levelVotes);
-      saveData('userVotes', userVotes);
+      localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
       renderLevels();
-
-      const message = { type: 'vote_level', levelId, value };
-      ws.send(JSON.stringify(message));
-      logMessage('SENT', message);
+      ws.send(JSON.stringify({ type: 'delete_level', levelId }));
     }
 
     function renderLevels() {
       const container = document.getElementById('levels-container');
       container.innerHTML = levels
         .filter(level => !deletedLevels.has(level.id))
-        .map(level => {
-          const votes = levelVotes[level.id] || { up: 0, down: 0 };
-          return `
-            <div class="level-card" data-id="${level.id}">
-              <div>${level.name}</div>
-              <div class="vote-container">
-                <button onclick="voteLevel(${level.id}, 1)" ${userVotes[level.id] ? 'disabled' : ''}>👍 ${votes.up}</button>
-                <button onclick="voteLevel(${level.id}, -1)" ${userVotes[level.id] ? 'disabled' : ''}>👎 ${votes.down}</button>
-                ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
-              </div>
-            </div>
-          `;
-        }).join('');
+        .map(level => `
+          <div class="level-card">
+            <div>${level.name}</div>
+            ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
+          </div>
+        `).join('');
     }
 
     function filterMessages(searchText) {
-      const searchTerm = searchText.toLowerCase().trim();
-      const comments = document.querySelectorAll('.comment');
-      
-      comments.forEach(comment => {
+      const term = searchText.toLowerCase().trim();
+      document.querySelectorAll('.comment').forEach(comment => {
         const content = comment.querySelector('.content').textContent.toLowerCase();
-        comment.style.display = content.includes(searchTerm) ? 'block' : 'none';
+        comment.style.display = content.includes(term) ? 'block' : 'none';
       });
     }
 
     function handleMessage(message) {
       if (deletedMessages.has(message.id)) return;
       
-      const container = document.getElementById('comments-container');
       const comment = document.createElement('div');
       comment.className = 'comment';
-      comment.setAttribute('data-id', message.id);
       comment.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
           <div class="content">${message.content}</div>
-          <small class="timestamp">${message.time || ''}</small>
-          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(this, '${message.id}')">🗑️</div>` : ''}
-        </div>
-        <div class="vote-container">
-          <button onclick="voteComment(this, '${message.id}', 1)">👍 ${message.upvotes || 0}</button>
-          <button onclick="voteComment(this, '${message.id}', -1)">👎 ${message.downvotes || 0}</button>
+          <small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>
+          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
         </div>
       `;
-      container.prepend(comment);
-      updateDeleteButtons();
-      
-      const currentSearch = document.getElementById('search-input').value;
-      filterMessages(currentSearch);
+      document.getElementById('comments-container').prepend(comment);
+      filterMessages(document.getElementById('search-input').value);
     }
 
-    function deleteComment(element, messageId) {
-      if (!deletedMessages.has(messageId)) {
-        deletedMessages.add(messageId);
-        saveData('deletedMessages', [...deletedMessages]);
-        element.closest('.comment').remove();
-
-        const message = { type: 'delete_message', messageId };
-        ws.send(JSON.stringify(message));
-        logMessage('SENT', message);
-      }
-    }
-
-    function voteComment(button, messageId, value) {
-      if (userVotes[messageId]) return alert('You have already voted!');
-      const voteContainer = button.parentElement;
-      const upButton = voteContainer.querySelector('button:first-child');
-      const downButton = voteContainer.querySelector('button:last-child');
-
-      if (value === 1) {
-        const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
-        upButton.textContent = `👍 ${upCount}`;
-      } else {
-        const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
-        downButton.textContent = `👎 ${downCount}`;
-      }
-
-      userVotes[messageId] = true;
-      saveData('userVotes', userVotes);
-
-      const message = { type: 'vote_comment', messageId, value };
-      ws.send(JSON.stringify(message));
-      logMessage('SENT', message);
-    }
-
-    function saveData(key, data) {
-      localStorage.setItem(key, JSON.stringify(data));
+    function deleteComment(messageId) {
+      deletedMessages.add(messageId);
+      localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
+      document.querySelector(`.comment[data-id="${messageId}"]`)?.remove();
+      ws.send(JSON.stringify({ type: 'delete_message', messageId }));
     }
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      logMessage('RECEIVED', message);
-
-      message.time = message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : '';
-
       switch (message.type) {
         case 'init':
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
-          Object.assign(levelVotes, message.levelVotes || {});
-          Object.assign(userVotes, message.userVotes || {});
-          saveData('levels', levels);
-          saveData('levelVotes', levelVotes);
-          saveData('userVotes', userVotes);
           renderLevels();
           message.messages.forEach(handleMessage);
           break;
-
-        case 'delete_level':
-          deletedLevels.add(message.levelId);
-          const index = levels.findIndex(l => l.id === message.levelId);
-          if (index !== -1) {
-            levels.splice(index, 1);
-          }
-          renderLevels();
-          break;
-
         case 'comment':
           handleMessage(message);
           break;
-
-        case 'vote_level':
-          levelVotes[message.levelId] = levelVotes[message.levelId] || { up: 0, down: 0 };
-          levelVotes[message.levelId][message.value === 1 ? 'up' : 'down']++;
-          saveData('levelVotes', levelVotes);
+        case 'delete_level':
+          deletedLevels.add(message.levelId);
           renderLevels();
           break;
-
-        case 'vote_comment':
-          const comment = document.querySelector(`.comment[data-id="${message.messageId}"]`);
-          if (comment) {
-            const upButton = comment.querySelector('.vote-container button:first-child');
-            const downButton = comment.querySelector('.vote-container button:last-child');
-            if (message.value === 1) {
-              const upCount = parseInt(upButton.textContent.match(/\d+/)[0]) + 1;
-              upButton.textContent = `👍 ${upCount}`;
-            } else {
-              const downCount = parseInt(downButton.textContent.match(/\d+/)[0]) + 1;
-              downButton.textContent = `👎 ${downCount}`;
-            }
-          }
-          break;
-
         case 'delete_message':
           deletedMessages.add(message.messageId);
           document.querySelector(`.comment[data-id="${message.messageId}"]`)?.remove();
@@ -432,16 +252,12 @@
 
     window.addEventListener('message', (event) => {
       if (event.origin !== 'https://turbowarp.org') return;
-      const message = {
+      ws.send(JSON.stringify({
         type: 'comment',
         content: event.data,
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        upvotes: 0,
-        downvotes: 0
-      };
-      ws.send(JSON.stringify(message));
-      logMessage('SENT', message);
+        id: Date.now(),
+        timestamp: Date.now()
+      }));
     });
 
     initAdminUI();
