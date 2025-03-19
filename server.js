@@ -57,7 +57,10 @@ wss.on('connection', (ws) => {
       
       switch (message.type) {
         case 'comment':
-          data.messages.push(message);
+          // Deduplicate messages
+          if (!data.messages.some(m => m.id === message.id)) {
+            data.messages.push(message);
+          }
           break;
         case 'new_level':
           if (!data.levels.some(l => l.id === message.level.id)) {
@@ -74,8 +77,9 @@ wss.on('connection', (ws) => {
 
       fs.writeFileSync(DATA_FILE, JSON.stringify(data));
       
+      // Broadcast to all clients including sender
       wss.clients.forEach(client => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
+        if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(message));
         }
       });

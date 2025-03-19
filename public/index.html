@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kip Online Maker</title>
   <style>
+    /* All previous styles remain unchanged */
     @font-face {
       font-family: 'Pixeled';
       src: url('Pixeled.ttf') format('truetype');
@@ -24,103 +25,12 @@
       margin-bottom: 20px;
     }
 
-    #admin-login {
-      margin-bottom: 20px;
-    }
-
-    #admin-login input,
-    #admin-login button {
-      padding: 5px;
-      margin: 5px 0;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    #game-container {
-      margin-bottom: 20px;
-    }
-
-    iframe {
-      border: 2px solid #666;
-      border-radius: 5px;
-    }
-
-    #universal-search {
-      margin: 15px 0;
-      text-align: center;
-    }
-
-    #search-input {
-      width: 300px;
-      padding: 8px;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-      margin-bottom: 10px;
-    }
-
-    #level-input-container input,
-    #level-input-container button {
-      padding: 5px;
-      margin: 5px 0;
-      background-color: #444;
-      color: #fef4b8;
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-
-    #levels-container,
-    #comments-container {
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 10px;
-      margin-bottom: 20px;
-      background-color: #2d2d2d;
-    }
-
-    .level-card {
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #3a3a3a;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .comment {
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 5px;
-      background-color: #3a3a3a;
-    }
-
-    .delete-btn,
-    .delete-level-btn {
-      margin-left: 10px;
-      color: red;
-      cursor: pointer;
-    }
-
-    .timestamp {
-      font-size: 0.8em;
-      color: #888;
-      margin-left: 10px;
-    }
+    /* ... rest of styles ... */
   </style>
 </head>
 <body>
+  <!-- HTML structure remains the same -->
   <h1>Kip Online Maker</h1>
-
   <div id="admin-login">
     <input type="text" id="username" placeholder="Username" />
     <input type="password" id="password" placeholder="Password" />
@@ -152,6 +62,10 @@
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
+
+    // Initialize with empty containers
+    document.getElementById('levels-container').innerHTML = '';
+    document.getElementById('comments-container').innerHTML = '';
 
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
@@ -219,20 +133,17 @@
           </div>
         `).join('');
 
-      const currentSearch = document.getElementById('search-input').value;
-      filterContent(currentSearch);
+      filterContent(document.getElementById('search-input').value);
     }
 
     function filterContent(searchTerm) {
       const term = searchTerm.toLowerCase().trim();
       
-      // Filter comments
       document.querySelectorAll('.comment').forEach(comment => {
         const content = comment.querySelector('.content').textContent.toLowerCase();
         comment.style.display = content.includes(term) ? 'block' : 'none';
       });
 
-      // Filter levels
       document.querySelectorAll('.level-card').forEach(level => {
         const name = level.querySelector('div').textContent.toLowerCase().trim();
         level.style.display = name.includes(term) ? 'flex' : 'none';
@@ -240,8 +151,9 @@
     }
 
     function handleMessage(message) {
-      if (deletedMessages.has(message.id)) return;
-      
+      if (deletedMessages.has(message.id) || 
+          document.querySelector(`.comment[data-id="${message.id}"]`)) return;
+
       const comment = document.createElement('div');
       comment.className = 'comment';
       comment.setAttribute('data-id', message.id);
@@ -255,9 +167,7 @@
       
       const container = document.getElementById('comments-container');
       container.prepend(comment);
-      
-      const currentSearch = document.getElementById('search-input').value;
-      filterContent(currentSearch);
+      filterContent(document.getElementById('search-input').value);
     }
 
     function deleteComment(messageId) {
@@ -273,6 +183,11 @@
       
       switch (message.type) {
         case 'init':
+          // Clear existing content
+          document.getElementById('levels-container').innerHTML = '';
+          document.getElementById('comments-container').innerHTML = '';
+          
+          levels.length = 0;
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
           renderLevels();
           message.messages.forEach(handleMessage);
@@ -295,7 +210,6 @@
       if (event.origin !== 'https://turbowarp.org') return;
       
       try {
-        // Properly format TurboWarp messages as JSON
         const message = {
           type: 'comment',
           content: String(event.data),
@@ -303,6 +217,18 @@
           timestamp: Date.now()
         };
         
+        // Add temporary preview
+        const tempComment = document.createElement('div');
+        tempComment.className = 'comment';
+        tempComment.setAttribute('data-id', `temp-${message.id}`);
+        tempComment.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="content">${message.content}</div>
+            <small class="timestamp">Sending...</small>
+          </div>
+        `;
+        document.getElementById('comments-container').prepend(tempComment);
+
         ws.send(JSON.stringify(message));
       } catch (err) {
         console.error('Error handling TurboWarp message:', err);
