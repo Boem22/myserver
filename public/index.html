@@ -134,7 +134,7 @@
   <div id="comments-container"></div>
 
   <script>
-    const ws = new WebSocket('wss://myserver-1jxx.onrender.com');
+    const ws = new WebSocket(window.location.origin.replace('http', 'ws'));
     let isAdmin = false;
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
