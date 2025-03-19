@@ -109,22 +109,7 @@
       background-color: #3a3a3a;
     }
 
-    .delete-btn {
-      margin-left: 10px;
-      padding: 2px 6px;
-      background-color: #ff4444;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      font-family: 'Pixeled', sans-serif;
-      font-size: 0.8em;
-    }
-
-    .delete-btn:hover {
-      background-color: #cc0000;
-    }
-
+    .delete-btn,
     .delete-level-btn {
       margin-left: 10px;
       color: red;
@@ -237,7 +222,7 @@
         .map(level => `
           <div class="level-card" data-id="${level.id}">
             <div>${level.name}</div>
-            ${isAdmin ? `<button class="delete-level-btn" onclick="deleteLevel(${level.id})">Delete</button>` : ''}
+            ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${level.id})">🗑️</div>` : ''}
           </div>
         `).join('');
 
@@ -269,7 +254,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div class="content">${message.content}</div>
           <small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>
-          ${isAdmin ? `<button class="delete-btn" onclick="deleteComment('${message.id}')">Delete</button>` : ''}
+          ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
         </div>
       `;
       
@@ -290,7 +275,9 @@
       
       switch (message.type) {
         case 'init':
+          levels.length = 0;
           levels.push(...message.levels.filter(l => !deletedLevels.has(l.id)));
+          document.getElementById('comments-container').innerHTML = '';
           renderLevels();
           message.messages.forEach(handleMessage);
           break;
@@ -316,11 +303,9 @@
           type: 'comment',
           content: String(event.data),
           id: Date.now(),
-          timestamp: Date.now(),
-          source: 'turbowarp'
+          timestamp: Date.now()
         };
         
-        // Temporary preview
         const tempComment = document.createElement('div');
         tempComment.className = 'comment';
         tempComment.setAttribute('data-id', `temp-${message.id}`);

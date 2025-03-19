@@ -7,7 +7,6 @@ const PORT = process.env.PORT || 8080;
 const DATA_FILE = path.join(__dirname, 'data.json');
 let connectionCount = 0;
 
-// Initialize data store
 let data = {
   messages: [],
   levels: [],
@@ -24,8 +23,6 @@ try {
 }
 
 const server = http.createServer((req, res) => {
-  console.log(`[HTTP] ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
-  
   const filePath = path.join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
   const extname = path.extname(filePath);
   const contentType = {
@@ -35,11 +32,9 @@ const server = http.createServer((req, res) => {
 
   fs.readFile(filePath, (err, content) => {
     if (err) {
-      console.warn('[HTTP] File not found:', filePath);
       res.writeHead(404);
       res.end('Not found');
     } else {
-      console.log('[HTTP] Serving file:', filePath);
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);
     }
@@ -51,18 +46,15 @@ const wss = new WebSocket.Server({ server });
 wss.on('connection', (ws, req) => {
   connectionCount++;
   const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  console.log(`[WS] New connection from ${clientIP}. Active: ${connectionCount}`);
 
   ws.on('close', () => {
     connectionCount--;
-    console.log(`[WS] Connection closed from ${clientIP}. Remaining: ${connectionCount}`);
   });
 
   ws.on('error', (err) => {
     console.error(`[WS] Error from ${clientIP}:`, err.message);
   });
 
-  // Send initial state
   ws.send(JSON.stringify({
     type: 'init',
     messages: data.messages,
@@ -71,25 +63,10 @@ wss.on('connection', (ws, req) => {
 
   ws.on('message', (rawData) => {
     try {
-      let message;
+      let message = JSON.parse(rawData.toString());
       
-      // Handle both JSON and raw TurboWarp messages
-      try {
-        message = JSON.parse(rawData.toString());
-      } catch (jsonError) {
-        console.log('[TURBOWARP] Received raw message:', rawData.toString());
-        message = {
-          type: 'comment',
-          content: rawData.toString(),
-          id: Date.now(),
-          timestamp: Date.now(),
-          source: 'turbowarp'
-        };
-      }
+      if (!message.type) return;
 
-      console.log(`[WS] Received ${message.type} from ${clientIP}`);
-
-      // Message processing
       switch (message.type) {
         case 'comment':
           if (!data.messages.some(m => m.id === message.id)) {
@@ -111,18 +88,37 @@ wss.on('connection', (ws, req) => {
 
       fs.writeFileSync(DATA_FILE, JSON.stringify(data));
       
-      // Broadcast to all clients
       wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(message));
         }
       });
     } catch (err) {
-      console.error('[ERROR] Message handling failed:', err);
+      try {
+        const message = {
+          type: 'comment',
+          content: rawData.toString(),
+          id: Date.now(),
+          timestamp: Date.now()
+        };
+        
+        if (!data.messages.some(m => m.id === message.id)) {
+          data.messages.push(message);
+          fs.writeFileSync(DATA_FILE, JSON.stringify(data));
+          
+          wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(message));
+            }
+          });
+        }
+      } catch (parseError) {
+        console.error('[WS] Message handling failed:', parseError);
+      }
     }
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`[SERVER] Running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
