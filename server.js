@@ -83,8 +83,7 @@ wss.on('connection', (ws, req) => {
           content: rawData.toString(),
           id: Date.now(),
           timestamp: Date.now(),
-          source: 'turbowarp',
-          isAdminControlled: true
+          source: 'turbowarp'
         };
       }
 
