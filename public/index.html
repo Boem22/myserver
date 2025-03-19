@@ -220,6 +220,7 @@
       filterContent(document.getElementById('search-input').value);
     }
 
+    // NOTE: The change is here: message.id is now passed as a number.
     function createCommentHTML(message) {
       const isTurboWarp = message.source === 'turbowarp';
       return `
@@ -228,7 +229,7 @@
             <div class="content">${message.content}</div>
             <div style="display: flex; align-items: center; gap: 10px;">
               ${!isTurboWarp ? `<small class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</small>` : ''}
-              ${isAdmin ? `<div class="delete-btn" onclick="deleteComment('${message.id}')">🗑️</div>` : ''}
+              ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(${message.id})">🗑️</div>` : ''}
             </div>
           </div>
         </div>

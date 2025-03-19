@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 8080;
 const DATA_FILE = path.join(__dirname, 'data.json');
 let connectionCount = 0;
 
-// Initialize data store (levelVotes and userVotes removed)
+// Initialize data store (removed unused keys)
 let data = {
   messages: [],
   levels: []
