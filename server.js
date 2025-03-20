@@ -4,22 +4,22 @@ const WebSocket = require('ws');
 const { Client } = require('pg');
 const dotenv = require('dotenv');
 
-// Load environment variables from .env file (if needed)
+// Load environment variables from .env file
 dotenv.config();
 
 // Create an Express app
 const app = express();
 
-// (Optional) Serve static files from the "public" directory
+// Serve static files from the "public" directory (if you have any)
 app.use(express.static('public'));
 
 // Create HTTP server using the Express app
 const server = http.createServer(app);
 
-// Use the port provided by Render (or default to 3000 for local testing)
+// Use the port provided by Render or default to 3000 for local testing
 const port = process.env.PORT || 3000;
 
-// Create WebSocket server attached to the HTTP server
+// Create WebSocket server attached to the HTTP server (handle upgrades)
 const wss = new WebSocket.Server({ noServer: true });
 
 // PostgreSQL database connection using your Neon credentials
@@ -30,7 +30,7 @@ const dbClient = new Client({
   password: 'npg_sCWzV6b9pTdv',
   database: 'neondb',
   ssl: {
-    rejectUnauthorized: false, // Required for Neon platform
+    rejectUnauthorized: false, // Required for Neon platform (or other SSL-enabled services)
   }
 });
 
@@ -45,11 +45,19 @@ wss.on('connection', (ws) => {
 
   // Handle incoming messages from WebSocket clients
   ws.on('message', async (message) => {
-    const parsedMessage = JSON.parse(message);
+    console.log('Received raw message:', message);
+    let parsedMessage;
+    try {
+      parsedMessage = JSON.parse(message);
+    } catch (err) {
+      console.error('Error parsing message:', err);
+      return;
+    }
 
     switch (parsedMessage.type) {
       case 'comment': {
         const { content, timestamp, source } = parsedMessage;
+        console.log('Inserting comment with content:', content);
         try {
           const res = await dbClient.query(
             'INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *',
@@ -63,6 +71,7 @@ wss.on('connection', (ws) => {
       }
       case 'new_level': {
         const { level } = parsedMessage;
+        console.log('Inserting new level with id:', level.id, 'and name:', level.name);
         try {
           const res = await dbClient.query(
             'INSERT INTO levels(id, name) VALUES($1, $2) RETURNING *',
@@ -76,6 +85,7 @@ wss.on('connection', (ws) => {
       }
       case 'delete_level': {
         const { levelId } = parsedMessage;
+        console.log('Deleting level with id:', levelId);
         try {
           await dbClient.query('DELETE FROM levels WHERE id = $1', [levelId]);
           console.log('Deleted level with id:', levelId);
@@ -86,6 +96,7 @@ wss.on('connection', (ws) => {
       }
       case 'delete_message': {
         const { messageId } = parsedMessage;
+        console.log('Deleting message with id:', messageId);
         try {
           await dbClient.query('DELETE FROM messages WHERE id = $1', [messageId]);
           console.log('Deleted message with id:', messageId);
@@ -104,8 +115,10 @@ wss.on('connection', (ws) => {
     try {
       const levelsRes = await dbClient.query('SELECT * FROM levels');
       const levels = levelsRes.rows;
+
       const messagesRes = await dbClient.query('SELECT * FROM messages');
       const messages = messagesRes.rows;
+
       const initData = {
         type: 'init',
         levels,
@@ -120,7 +133,7 @@ wss.on('connection', (ws) => {
   sendInitialData();
 });
 
-// Handle HTTP upgrade requests for WebSocket connections
+// Handle HTTP upgrade requests to upgrade to a WebSocket connection
 server.on('upgrade', (request, socket, head) => {
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
