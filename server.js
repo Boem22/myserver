@@ -1,77 +1,74 @@
-require('dotenv').config();
+// Import required modules
 const express = require('express');
 const { Pool } = require('pg');
-const http = require('http');
 const WebSocket = require('ws');
+require('dotenv').config(); // Load environment variables from .env file
 
+// Initialize Express app
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-// ✅ Connect to PostgreSQL (Neon)
+// Set up WebSocket server
+const wss = new WebSocket.Server({ noServer: true });
+
+// Create a pool for PostgreSQL database connection using the connection string from environment variables
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // Prevents self-signed certificate error
+  connectionString: process.env.DATABASE_URL, // Ensure this is the correct Neon database URL in .env
+  ssl: {
+    rejectUnauthorized: false, // For SSL connection to Neon
+  },
 });
 
-// ✅ Ensure the "messages" table exists
-const createTableQuery = `
-  CREATE TABLE IF NOT EXISTS messages (
-    id SERIAL PRIMARY KEY,
-    username TEXT NOT NULL,
-    content TEXT NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-`;
+// Verify database connection
+pool.connect()
+  .then(() => {
+    console.log('Connected to PostgreSQL');
+  })
+  .catch(err => {
+    console.error('Error connecting to PostgreSQL:', err);
+  });
 
-pool.query(createTableQuery)
-  .then(() => console.log("✅ Messages table is ready"))
-  .catch(err => console.error("Table creation error:", err));
-
-// 🌍 Express route (optional)
-app.get('/', (req, res) => {
-  res.send("WebSocket server is running...");
-});
-
-// 🌐 WebSocket Connection Handling
+// Handle WebSocket connections
 wss.on('connection', (ws) => {
-  console.log('🔌 New client connected');
+  console.log('New WebSocket connection');
 
-  // 📨 Send message history on connect
-  pool.query('SELECT * FROM messages ORDER BY timestamp DESC LIMIT 50')
-    .then(result => {
-      ws.send(JSON.stringify({ type: 'history', messages: result.rows }));
-    })
-    .catch(err => console.error('Error fetching messages:', err));
+  // Send a message to the client when the connection is made
+  ws.send('Hello from server');
 
-  // 📩 Handle incoming messages
-  ws.on('message', async (data) => {
-    try {
-      const message = JSON.parse(data);
-      const { username, content } = message;
+  // Handle messages from the client
+  ws.on('message', (message) => {
+    console.log('Received message:', message);
 
-      // 📝 Save message to DB
-      const insertQuery = 'INSERT INTO messages (username, content) VALUES ($1, $2) RETURNING *';
-      const result = await pool.query(insertQuery, [username, content]);
-
-      // 📡 Broadcast new message to all clients
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'new_message', message: result.rows[0] }));
-        }
-      });
-    } catch (error) {
-      console.error('Message handling error:', error);
-    }
+    // Store the message in the database
+    pool.query('INSERT INTO messages (content) VALUES ($1)', [message], (err, result) => {
+      if (err) {
+        console.error('Error inserting message:', err);
+        ws.send('Error saving message');
+      } else {
+        console.log('Message saved:', message);
+        ws.send('Message saved');
+      }
+    });
   });
 
+  // Handle WebSocket connection close
   ws.on('close', () => {
-    console.log('❌ Client disconnected');
+    console.log('WebSocket connection closed');
   });
 });
 
-// 🚀 Start the server
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+// Use WebSocket with the Express server
+app.server = app.listen(10000, () => {
+  console.log('Server running on port 10000');
+});
+
+// Handle WebSocket upgrade
+app.server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+// Endpoint to check if the app is live
+app.get('/', (req, res) => {
+  res.send('Server is live!');
 });
