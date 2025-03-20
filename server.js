@@ -4,21 +4,23 @@ const WebSocket = require('ws');
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
-// Load environment variables
+// Load environment variables from .env file
 dotenv.config();
 
 // Create an Express app
 const app = express();
-app.use(express.static('public'));
+app.use(express.static('public')); // Serve static files from the "public" directory
 
-// Create HTTP server
+// Create HTTP server using the Express app
 const server = http.createServer(app);
+
+// Use the port provided by Render or default to 3000 for local testing
 const port = process.env.PORT || 3000;
 
-// Create WebSocket server
+// Create WebSocket server attached to the HTTP server (for upgrade requests)
 const wss = new WebSocket.Server({ noServer: true });
 
-// PostgreSQL connection pool
+// Set up PostgreSQL connection pool using Neon credentials
 const pool = new Pool({
   host: 'ep-floral-sea-a2pc4f5q-pooler.eu-central-1.aws.neon.tech',
   port: 5432,
@@ -37,7 +39,7 @@ const handleDatabaseQuery = async (query, params) => {
     const result = await pool.query(query, params);
     return result.rows;
   } catch (err) {
-    console.error('Database Error:', err.stack);
+    console.error('Error executing query:', err.stack);
     return [];
   }
 };
@@ -52,18 +54,19 @@ wss.on('connection', (ws) => {
     let parsedMessage;
     try {
       parsedMessage = JSON.parse(message);
-    } catch {
-      parsedMessage = { type: 'comment', content: message.toString(), timestamp: new Date() };
+    } catch (err) {
+      console.error('Invalid JSON, treating as plain text:', err);
+      parsedMessage = { type: 'comment', content: message.toString(), timestamp: Date.now(), source: 'unknown' };
     }
 
     switch (parsedMessage.type) {
       case 'comment': {
-        const { content, timestamp } = parsedMessage;
+        const { content, timestamp, source } = parsedMessage;
         console.log('Inserting comment:', content);
         try {
           const res = await handleDatabaseQuery(
-            'INSERT INTO messages (content, timestamp) VALUES ($1, $2) RETURNING *',
-            [content, new Date(timestamp)]
+            'INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *',
+            [content, timestamp, source]
           );
           console.log('Inserted:', res[0]);
         } catch (err) {
@@ -71,56 +74,30 @@ wss.on('connection', (ws) => {
         }
         break;
       }
-
       case 'new_level': {
+        console.log('Received new level:', parsedMessage);
         const { level } = parsedMessage;
         if (!level || !level.id || !level.name) {
           console.error('Invalid level format:', level);
           break;
         }
-        console.log('Inserting level:', level.id, level.name);
         try {
           const res = await handleDatabaseQuery(
-            'INSERT INTO levels (id, name) VALUES ($1, $2) RETURNING *',
+            'INSERT INTO levels(id, name) VALUES($1, $2) RETURNING *',
             [level.id, level.name]
           );
-          console.log('Inserted level:', res[0]);
+          console.log('Inserted new level:', res[0]);
         } catch (err) {
           console.error('Error inserting level:', err);
         }
         break;
       }
-
-      case 'delete_level': {
-        const { levelId } = parsedMessage;
-        console.log('Deleting level:', levelId);
-        try {
-          await handleDatabaseQuery('DELETE FROM levels WHERE id = $1', [levelId]);
-          console.log('Deleted level:', levelId);
-        } catch (err) {
-          console.error('Error deleting level:', err);
-        }
-        break;
-      }
-
-      case 'delete_message': {
-        const { messageId } = parsedMessage;
-        console.log('Deleting message:', messageId);
-        try {
-          await handleDatabaseQuery('DELETE FROM messages WHERE id = $1', [messageId]);
-          console.log('Deleted message:', messageId);
-        } catch (err) {
-          console.error('Error deleting message:', err);
-        }
-        break;
-      }
-
       default:
         console.log('Unknown message type:', parsedMessage.type);
     }
   });
 
-  // Send initial data to client
+  // Send initial data to the client
   const sendInitialData = async () => {
     try {
       const levels = await handleDatabaseQuery('SELECT * FROM levels');
@@ -134,16 +111,14 @@ wss.on('connection', (ws) => {
   sendInitialData();
 });
 
-// Handle WebSocket upgrade requests
+// Handle HTTP upgrade requests for WebSocket connections
 server.on('upgrade', (request, socket, head) => {
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
   });
 });
 
-// Start server
+// Start the HTTP server
 server.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
-
-console.log('WebSocket server ready (wss://yourserver.onrender.com)');
