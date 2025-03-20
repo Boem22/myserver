@@ -11,9 +11,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 // PostgreSQL client setup
 const client = new Client({
   connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Ignore self-signed certificate errors
-  },
+  ssl: { rejectUnauthorized: false } // Ensure SSL is used and allow self-signed certificates
 });
 
 client.connect().then(() => {
