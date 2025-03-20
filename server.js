@@ -9,9 +9,7 @@ dotenv.config();
 
 // Create an Express app
 const app = express();
-
-// Serve static files from the "public" directory (if any)
-app.use(express.static('public'));
+app.use(express.static('public')); // Serve static files from the "public" directory
 
 // Create HTTP server using the Express app
 const server = http.createServer(app);
@@ -30,7 +28,7 @@ const pool = new Pool({
   password: 'npg_sCWzV6b9pTdv',
   database: 'neondb',
   ssl: {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, // Required for Neon platform
   },
   max: 10,
   idleTimeoutMillis: 30000,
@@ -60,6 +58,7 @@ wss.on('connection', (ws) => {
       parsedMessage = JSON.parse(message);
     } catch (err) {
       console.error('Error parsing message as JSON, falling back to plain text:', err);
+      // Fallback: create a default comment object
       parsedMessage = {
         type: 'comment',
         content: message.toString(),
@@ -73,6 +72,9 @@ wss.on('connection', (ws) => {
         const { content, timestamp, source } = parsedMessage;
         console.log('Inserting comment with content:', content);
         try {
+          // This query expects the "messages" table to have a "source" column.
+          // If your table doesn't have it, update your schema with:
+          // ALTER TABLE messages ADD COLUMN source TEXT;
           const res = await handleDatabaseQuery(
             'INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *',
             [content, timestamp, source]
