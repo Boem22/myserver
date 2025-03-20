@@ -99,4 +99,15 @@ wss.on('connection', (ws) => {
   sendInitialData();
 });
 
+// Listen on Render server
+const server = app.listen(process.env.PORT || 10001, () => {
+  console.log(`Server is running on port ${process.env.PORT || 10001}`);
+});
+
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, ws => {
+    wss.emit('connection', ws, request);
+  });
+});
+
 console.log('WebSocket server running on ws://localhost:10001');
