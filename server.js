@@ -1,66 +1,58 @@
 const express = require('express');
-const { Client } = require('pg');
 const WebSocket = require('ws');
-const path = require('path');
-const dotenv = require('dotenv');
-
-// Load environment variables from .env file
-dotenv.config();
-
-// Initialize express app
+const { Client } = require('pg');
 const app = express();
+const port = 10001; // Changed port to avoid EADDRINUSE error
+
+// Setup PostgreSQL connection
+const client = new Client({
+  user: 'your_user',
+  host: 'localhost',
+  database: 'your_database',
+  password: 'your_password',
+  port: 5432
+});
+client.connect();
+
+// Serve static files (optional, if you have static assets)
+app.use(express.static('public'));
+
+// Start WebSocket server
 const wss = new WebSocket.Server({ noServer: true });
 
-// Serve static files (if you have a frontend)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Set the port to 10001 instead of 10000
-const PORT = process.env.PORT || 10001;
-
-// PostgreSQL database connection
-const dbClient = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
-
-dbClient.connect()
-  .then(() => console.log('Connected to PostgreSQL'))
-  .catch(err => console.error('Error connecting to PostgreSQL', err));
-
-// WebSocket handling
-wss.on('connection', ws => {
+// Handle WebSocket connection
+wss.on('connection', (ws) => {
   ws.on('message', async (message) => {
-    console.log('Received:', message);
-    try {
-      // Insert the received message into the database
-      await dbClient.query('INSERT INTO messages (content) VALUES ($1)', [message]);
-      console.log('Message inserted into database');
-    } catch (error) {
-      console.error('Error inserting message into database', error);
+    const msg = JSON.parse(message);
+
+    // Adding the sender field to the message
+    if (msg.type === 'new_level') {
+      const sender = 'system'; // Use 'system' or the actual sender based on your app logic
+      const query = {
+        text: 'INSERT INTO messages(type, level, sender, timestamp) VALUES($1, $2, $3, $4)',
+        values: [msg.type, JSON.stringify(msg.level), sender, new Date()],
+      };
+      
+      try {
+        await client.query(query);
+      } catch (err) {
+        console.error('Error inserting message into database:', err);
+      }
     }
+
+    // Handle other message types if needed
+    // Example for other message types
+    // else if (msg.type === 'delete_level') { ... }
   });
-
-  // Send a confirmation message to the client after connection is established
-  ws.send('Connected to WebSocket server');
 });
 
-// HTTP server to handle WebSocket upgrade
-app.server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Create HTTP server and integrate WebSocket
+const server = app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
 
-// Handling WebSocket upgrade request
-app.server.on('upgrade', (request, socket, head) => {
+server.on('upgrade', (request, socket, head) => {
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
   });
 });
-
-// Send an HTML file when the root route is accessed
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-module.exports = app;
