@@ -22,7 +22,7 @@ const port = process.env.PORT || 3000;
 // Create WebSocket server attached to the HTTP server (for upgrade requests)
 const wss = new WebSocket.Server({ noServer: true });
 
-// Set up PostgreSQL connection pool using Neon credentials
+// Set up PostgreSQL connection pool using your Neon credentials
 const pool = new Pool({
   host: 'ep-floral-sea-a2pc4f5q-pooler.eu-central-1.aws.neon.tech',
   port: 5432,
@@ -59,7 +59,6 @@ wss.on('connection', (ws) => {
     try {
       parsedMessage = JSON.parse(message);
     } catch (err) {
-      // Fallback: assume message is plain text and wrap it in a comment object
       console.error('Error parsing message as JSON, falling back to plain text:', err);
       parsedMessage = {
         type: 'comment',
@@ -85,7 +84,12 @@ wss.on('connection', (ws) => {
         break;
       }
       case 'new_level': {
+        console.log('Received new level message:', parsedMessage);
         const { level } = parsedMessage;
+        if (!level || !level.id || !level.name) {
+          console.error('Invalid level format received:', level);
+          break;
+        }
         console.log('Inserting new level with id:', level.id, 'and name:', level.name);
         try {
           const res = await handleDatabaseQuery(
