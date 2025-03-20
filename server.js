@@ -9,7 +9,9 @@ dotenv.config();
 
 // Create an Express app
 const app = express();
-app.use(express.static('public')); // Serve static files from "public"
+
+// Serve static files from the "public" directory (if any)
+app.use(express.static('public'));
 
 // Create HTTP server using the Express app
 const server = http.createServer(app);
@@ -20,7 +22,7 @@ const port = process.env.PORT || 3000;
 // Create WebSocket server attached to the HTTP server (for upgrade requests)
 const wss = new WebSocket.Server({ noServer: true });
 
-// PostgreSQL connection pool using Neon credentials
+// Set up PostgreSQL connection pool using Neon credentials
 const pool = new Pool({
   host: 'ep-floral-sea-a2pc4f5q-pooler.eu-central-1.aws.neon.tech',
   port: 5432,
@@ -28,14 +30,14 @@ const pool = new Pool({
   password: 'npg_sCWzV6b9pTdv',
   database: 'neondb',
   ssl: {
-    rejectUnauthorized: false, // Allow self-signed certificates
+    rejectUnauthorized: false,
   },
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
 
-// Helper function for executing queries
+// Helper function for executing database queries
 const handleDatabaseQuery = async (query, params) => {
   try {
     const result = await pool.query(query, params);
@@ -50,14 +52,21 @@ const handleDatabaseQuery = async (query, params) => {
 wss.on('connection', (ws) => {
   console.log('A new WebSocket client connected');
 
+  // Handle incoming messages from WebSocket clients
   ws.on('message', async (message) => {
     console.log('Received raw message:', message);
     let parsedMessage;
     try {
       parsedMessage = JSON.parse(message);
     } catch (err) {
-      console.error('Error parsing message:', err);
-      return;
+      // Fallback: assume message is plain text and wrap it in a comment object
+      console.error('Error parsing message as JSON, falling back to plain text:', err);
+      parsedMessage = {
+        type: 'comment',
+        content: message.toString(),
+        timestamp: Date.now(),
+        source: 'unknown'
+      };
     }
 
     switch (parsedMessage.type) {
