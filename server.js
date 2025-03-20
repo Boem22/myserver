@@ -1,74 +1,62 @@
-// Import required modules
 const express = require('express');
-const { Pool } = require('pg');
+const { Client } = require('pg');
+const dotenv = require('dotenv');
+const path = require('path');
 const WebSocket = require('ws');
-require('dotenv').config(); // Load environment variables from .env file
 
-// Initialize Express app
+// Load environment variables from .env file
+dotenv.config();
+
+// Create an Express app
 const app = express();
+const port = process.env.PORT || 10000;
 
-// Set up WebSocket server
+// Set up PostgreSQL client connection
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+client.connect()
+  .then(() => console.log('Connected to PostgreSQL'))
+  .catch((err) => console.error('Connection error', err.stack));
+
+// Serve static files (HTML, CSS, JS, etc.) from the "public" directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Database query example
+app.get('/messages', async (req, res) => {
+  try {
+    const result = await client.query('SELECT * FROM messages');
+    res.json(result.rows); // Sends the data as JSON
+  } catch (err) {
+    console.error('Database query error:', err);
+    res.status(500).send('Error querying the database');
+  }
+});
+
+// WebSocket setup for real-time communication
 const wss = new WebSocket.Server({ noServer: true });
 
-// Create a pool for PostgreSQL database connection using the connection string from environment variables
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Ensure this is the correct Neon database URL in .env
-  ssl: {
-    rejectUnauthorized: false, // For SSL connection to Neon
-  },
-});
-
-// Verify database connection
-pool.connect()
-  .then(() => {
-    console.log('Connected to PostgreSQL');
-  })
-  .catch(err => {
-    console.error('Error connecting to PostgreSQL:', err);
-  });
-
-// Handle WebSocket connections
 wss.on('connection', (ws) => {
-  console.log('New WebSocket connection');
-
-  // Send a message to the client when the connection is made
-  ws.send('Hello from server');
-
-  // Handle messages from the client
+  console.log('WebSocket connected');
   ws.on('message', (message) => {
     console.log('Received message:', message);
-
-    // Store the message in the database
-    pool.query('INSERT INTO messages (content) VALUES ($1)', [message], (err, result) => {
-      if (err) {
-        console.error('Error inserting message:', err);
-        ws.send('Error saving message');
-      } else {
-        console.log('Message saved:', message);
-        ws.send('Message saved');
-      }
-    });
-  });
-
-  // Handle WebSocket connection close
-  ws.on('close', () => {
-    console.log('WebSocket connection closed');
   });
 });
 
-// Use WebSocket with the Express server
-app.server = app.listen(10000, () => {
-  console.log('Server running on port 10000');
-});
-
-// Handle WebSocket upgrade
-app.server.on('upgrade', (request, socket, head) => {
+app.on('upgrade', (request, socket, head) => {
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
   });
 });
 
-// Endpoint to check if the app is live
+// Set up route for the home page (index.html)
 app.get('/', (req, res) => {
-  res.send('Server is live!');
+  res.sendFile(path.join(__dirname, 'public', 'index.html')); // Make sure this file exists in the public folder
+});
+
+// Start the Express server
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
