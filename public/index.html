@@ -47,7 +47,9 @@
   </div>
   <div id="levels-container"></div>
   <div id="comments-container"></div>
+
   <script>
+    // WebSocket connection setup
     const ws = new WebSocket(window.location.origin.replace('http', 'ws'));
     let isAdmin = false;
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
@@ -55,6 +57,7 @@
     const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
     let messages = [];
 
+    // Admin UI logic
     function initAdminUI() {
       document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
       document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
@@ -63,6 +66,7 @@
       });
     }
 
+    // Admin login
     function login() {
       const user = document.getElementById('username').value;
       const pass = document.getElementById('password').value;
@@ -74,6 +78,7 @@
       }
     }
 
+    // Admin logout
     function logout() {
       isAdmin = false;
       initAdminUI();
@@ -81,6 +86,7 @@
       renderComments();
     }
 
+    // Add level
     function addLevel() {
       const levelInput = document.getElementById('level-input');
       const levelCode = levelInput.value.trim();
@@ -94,6 +100,7 @@
       }
     }
 
+    // Delete level
     function deleteLevel(levelId) {
       const index = levels.findIndex(l => l.id === levelId);
       if (index !== -1) {
@@ -106,6 +113,7 @@
       }
     }
 
+    // Render levels
     function renderLevels() {
       const container = document.getElementById('levels-container');
       const sorted = [...levels].filter(l => !deletedLevels.has(l.id)).sort((a, b) => a.name.localeCompare(b.name));
@@ -118,6 +126,7 @@
       filterContent(document.getElementById('search-input').value);
     }
 
+    // Render comments
     function renderComments() {
       const container = document.getElementById('comments-container');
       container.innerHTML = '';
@@ -127,6 +136,7 @@
       filterContent(document.getElementById('search-input').value);
     }
 
+    // Create comment HTML structure
     function createCommentHTML(m) {
       const isTW = m.source === 'turbowarp';
       return `
@@ -142,6 +152,7 @@
       `;
     }
 
+    // Render new comment
     function renderNewComment(m) {
       if (deletedMessages.has(m.id)) return;
       const container = document.getElementById('comments-container');
@@ -149,6 +160,7 @@
       filterContent(document.getElementById('search-input').value);
     }
 
+    // Filter content by search term
     function filterContent(term) {
       term = term.toLowerCase().trim();
       document.querySelectorAll('.comment').forEach(c => {
@@ -161,6 +173,7 @@
       });
     }
 
+    // Delete comment
     function deleteComment(id) {
       deletedMessages.add(id);
       localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
@@ -168,6 +181,7 @@
       ws.send(JSON.stringify({ type: 'delete_message', messageId: id }));
     }
 
+    // WebSocket message handling
     ws.onmessage = (event) => {
       const m = JSON.parse(event.data);
       switch(m.type) {
@@ -193,6 +207,7 @@
       }
     };
 
+    // Listen to messages from the embedded game (TurboWarp)
     window.addEventListener('message', (e) => {
       if (e.origin !== 'https://turbowarp.org') return;
       try {
@@ -209,6 +224,7 @@
       } catch (err) {}
     });
 
+    // Initialize
     initAdminUI();
     renderLevels();
   </script>

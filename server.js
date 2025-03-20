@@ -1,78 +1,66 @@
-const WebSocket = require('ws');
-const { Client } = require('pg');
 const express = require('express');
+const { Client } = require('pg');
+const WebSocket = require('ws');
+const path = require('path');
 const dotenv = require('dotenv');
 
-// Load environment variables from the .env file
+// Load environment variables from .env file
 dotenv.config();
 
-// Setup Express (optional for serving static files, etc.)
+// Initialize express app
 const app = express();
-const port = 10000;
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
-
-// Set up WebSocket server
 const wss = new WebSocket.Server({ noServer: true });
 
-// Set up PostgreSQL connection
-const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false, // Disable SSL certificate validation for Neon
+// Serve static files (if you have a frontend)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Set the port to 10001 instead of 10000
+const PORT = process.env.PORT || 10001;
+
+// PostgreSQL database connection
+const dbClient = new Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+dbClient.connect()
+  .then(() => console.log('Connected to PostgreSQL'))
+  .catch(err => console.error('Error connecting to PostgreSQL', err));
+
+// WebSocket handling
+wss.on('connection', ws => {
+  ws.on('message', async (message) => {
+    console.log('Received:', message);
+    try {
+      // Insert the received message into the database
+      await dbClient.query('INSERT INTO messages (content) VALUES ($1)', [message]);
+      console.log('Message inserted into database');
+    } catch (error) {
+      console.error('Error inserting message into database', error);
     }
+  });
+
+  // Send a confirmation message to the client after connection is established
+  ws.send('Connected to WebSocket server');
 });
 
-client.connect()
-    .then(() => {
-        console.log('Connected to PostgreSQL');
-    })
-    .catch((err) => {
-        console.error('Database connection error:', err);
-    });
-
-// WebSocket connection handler
-wss.on('connection', (ws) => {
-    console.log('Client connected');
-    
-    // Handle incoming message from client
-    ws.on('message', async (data) => {
-        try {
-            const parsedData = JSON.parse(data);
-            const { message } = parsedData;  // Assume the message is passed as { message: 'text' }
-
-            console.log('Message received:', message);
-
-            // Insert message into the PostgreSQL database
-            const insertMessageQuery = 'INSERT INTO messages (message, sent_at) VALUES ($1, $2)';
-            const values = [message, new Date()];
-            await client.query(insertMessageQuery, values);
-            console.log('Message inserted into the database');
-
-            // Broadcast the message to all connected clients
-            wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({ message }));
-                }
-            });
-        } catch (err) {
-            console.error('Error handling message:', err);
-        }
-    });
-
-    ws.on('close', () => {
-        console.log('Client disconnected');
-    });
+// HTTP server to handle WebSocket upgrade
+app.server = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
-// Handle the WebSocket upgrade on the Express server
-app.server = app.listen(port, () => {
-    console.log(`Express server running on port ${port}`);
-});
-
+// Handling WebSocket upgrade request
 app.server.on('upgrade', (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-    });
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
 });
+
+// Send an HTML file when the root route is accessed
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+module.exports = app;
