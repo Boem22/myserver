@@ -48,9 +48,12 @@
   <div id="levels-container"></div>
   <div id="comments-container"></div>
 
+  <!-- Client-side JavaScript to handle WebSocket connection and UI interactions -->
   <script>
-    // WebSocket connection setup
-    const ws = new WebSocket(window.location.origin.replace('http', 'ws'));
+    // Determine the correct WebSocket protocol based on the page protocol
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    // Connect to the WebSocket server using the current host (Render routes traffic correctly)
+    const ws = new WebSocket(protocol + "//" + window.location.host);
     let isAdmin = false;
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
     const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
@@ -221,10 +224,12 @@
         const temp = document.querySelector(`.comment[data-id="temp-${m.id}"]`);
         if (temp) temp.remove();
         ws.send(JSON.stringify(m));
-      } catch (err) {}
+      } catch (err) {
+        console.error('Error handling TurboWarp message:', err);
+      }
     });
 
-    // Initialize
+    // Initialize admin UI and render levels at startup
     initAdminUI();
     renderLevels();
   </script>

@@ -4,25 +4,23 @@ const WebSocket = require('ws');
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
-// Load environment variables from .env file (if needed)
+// Load environment variables from .env file
 dotenv.config();
 
 // Create an Express app
 const app = express();
-
-// (Optional) Serve static files from the "public" directory
-app.use(express.static('public'));
+app.use(express.static('public')); // Serve static files from "public"
 
 // Create HTTP server using the Express app
 const server = http.createServer(app);
 
-// Use the port provided by Render (or default to 3000 for local testing)
+// Use the port provided by Render or default to 3000 for local testing
 const port = process.env.PORT || 3000;
 
-// Create WebSocket server attached to the HTTP server
+// Create WebSocket server attached to the HTTP server (for upgrade requests)
 const wss = new WebSocket.Server({ noServer: true });
 
-// Set up PostgreSQL connection pool
+// PostgreSQL connection pool using Neon credentials
 const pool = new Pool({
   host: 'ep-floral-sea-a2pc4f5q-pooler.eu-central-1.aws.neon.tech',
   port: 5432,
@@ -30,20 +28,21 @@ const pool = new Pool({
   password: 'npg_sCWzV6b9pTdv',
   database: 'neondb',
   ssl: {
-    rejectUnauthorized: false, // Required for Neon platform
+    rejectUnauthorized: false, // Allow self-signed certificates
   },
-  max: 10, // Max number of connections in the pool
-  idleTimeoutMillis: 30000, // Timeout for idle connections
-  connectionTimeoutMillis: 2000, // Timeout for establishing a connection
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-// Function to handle database queries
+// Helper function for executing queries
 const handleDatabaseQuery = async (query, params) => {
   try {
     const result = await pool.query(query, params);
     return result.rows;
   } catch (err) {
     console.error('Error executing query:', err.stack);
+    return [];
   }
 };
 
@@ -51,35 +50,65 @@ const handleDatabaseQuery = async (query, params) => {
 wss.on('connection', (ws) => {
   console.log('A new WebSocket client connected');
 
-  // Handle incoming messages from WebSocket clients
   ws.on('message', async (message) => {
-    const parsedMessage = JSON.parse(message);
+    console.log('Received raw message:', message);
+    let parsedMessage;
+    try {
+      parsedMessage = JSON.parse(message);
+    } catch (err) {
+      console.error('Error parsing message:', err);
+      return;
+    }
 
     switch (parsedMessage.type) {
       case 'comment': {
         const { content, timestamp, source } = parsedMessage;
-        await handleDatabaseQuery(
-          'INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *',
-          [content, timestamp, source]
-        );
+        console.log('Inserting comment with content:', content);
+        try {
+          const res = await handleDatabaseQuery(
+            'INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *',
+            [content, timestamp, source]
+          );
+          console.log('Inserted new comment:', res[0]);
+        } catch (err) {
+          console.error('Error inserting new comment:', err);
+        }
         break;
       }
       case 'new_level': {
         const { level } = parsedMessage;
-        await handleDatabaseQuery(
-          'INSERT INTO levels(id, name) VALUES($1, $2) RETURNING *',
-          [level.id, level.name]
-        );
+        console.log('Inserting new level with id:', level.id, 'and name:', level.name);
+        try {
+          const res = await handleDatabaseQuery(
+            'INSERT INTO levels(id, name) VALUES($1, $2) RETURNING *',
+            [level.id, level.name]
+          );
+          console.log('Inserted new level:', res[0]);
+        } catch (err) {
+          console.error('Error inserting new level:', err);
+        }
         break;
       }
       case 'delete_level': {
         const { levelId } = parsedMessage;
-        await handleDatabaseQuery('DELETE FROM levels WHERE id = $1', [levelId]);
+        console.log('Deleting level with id:', levelId);
+        try {
+          await handleDatabaseQuery('DELETE FROM levels WHERE id = $1', [levelId]);
+          console.log('Deleted level with id:', levelId);
+        } catch (err) {
+          console.error('Error deleting level:', err);
+        }
         break;
       }
       case 'delete_message': {
         const { messageId } = parsedMessage;
-        await handleDatabaseQuery('DELETE FROM messages WHERE id = $1', [messageId]);
+        console.log('Deleting message with id:', messageId);
+        try {
+          await handleDatabaseQuery('DELETE FROM messages WHERE id = $1', [messageId]);
+          console.log('Deleted message with id:', messageId);
+        } catch (err) {
+          console.error('Error deleting message:', err);
+        }
         break;
       }
       default:
