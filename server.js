@@ -1,36 +1,27 @@
-const express = require('express');
-const http = require('http');
 const WebSocket = require('ws');
 const { Client } = require('pg');
 
-// Initialize Express app
-const app = express();
-const server = http.createServer(app);
-
-// Create WebSocket server
-const wss = new WebSocket.Server({ server });
-
-// PostgreSQL database configuration
+// Database connection
 const client = new Client({
-  user: 'neondb_owner',
   host: 'ep-floral-sea-a2pc4f5q-pooler.eu-central-1.aws.neon.tech',
-  database: 'neondb',
-  password: 'npg_sCWzV6b9pTdv',
   port: 5432,
+  user: 'neondb_owner',
+  password: 'npg_sCWzV6b9pTdv',
+  database: 'neondb',
   ssl: {
-    rejectUnauthorized: false,  // This is required for SSL connections
+    rejectUnauthorized: false, // Required for Neon platform (or other SSL-enabled services)
   }
 });
 
-// Connect to PostgreSQL
+// Connect to the PostgreSQL database
 client.connect()
-  .then(() => console.log("Connected to the database"))
-  .catch(err => console.error("Error connecting to the database:", err));
+  .then(() => console.log('Connected to PostgreSQL database'))
+  .catch(err => console.error('Database connection error:', err.stack));
 
-// Serve static files from the 'public' folder
-app.use(express.static('public'));
+// Create WebSocket server
+const wss = new WebSocket.Server({ port: 10001 });
 
-// WebSocket connection
+// Handle WebSocket connections
 wss.on('connection', (ws) => {
   console.log('A new WebSocket client connected');
 
@@ -39,8 +30,17 @@ wss.on('connection', (ws) => {
     const parsedMessage = JSON.parse(message);
 
     switch (parsedMessage.type) {
+      case 'comment':
+        const { content, timestamp, source } = parsedMessage;
+        try {
+          const res = await client.query('INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *', [content, timestamp, source]);
+          console.log('Inserted new comment:', res.rows[0]);
+        } catch (err) {
+          console.error('Error inserting new comment:', err);
+        }
+        break;
+
       case 'new_level':
-        // Insert new level into the database
         const { level } = parsedMessage;
         try {
           const res = await client.query('INSERT INTO levels(id, name) VALUES($1, $2) RETURNING *', [level.id, level.name]);
@@ -51,35 +51,22 @@ wss.on('connection', (ws) => {
         break;
 
       case 'delete_level':
-        // Delete level from the database
         const { levelId } = parsedMessage;
         try {
-          const res = await client.query('DELETE FROM levels WHERE id = $1 RETURNING *', [levelId]);
-          console.log('Deleted level:', res.rows[0]);
+          await client.query('DELETE FROM levels WHERE id = $1', [levelId]);
+          console.log('Deleted level with id:', levelId);
         } catch (err) {
           console.error('Error deleting level:', err);
         }
         break;
 
       case 'delete_message':
-        // Delete message from the database
         const { messageId } = parsedMessage;
         try {
-          const res = await client.query('DELETE FROM messages WHERE id = $1 RETURNING *', [messageId]);
-          console.log('Deleted message:', res.rows[0]);
+          await client.query('DELETE FROM messages WHERE id = $1', [messageId]);
+          console.log('Deleted message with id:', messageId);
         } catch (err) {
           console.error('Error deleting message:', err);
-        }
-        break;
-
-      case 'comment':
-        // Insert comment into the database
-        const { content, timestamp, source } = parsedMessage;
-        try {
-          const res = await client.query('INSERT INTO messages(content, timestamp, source) VALUES($1, $2, $3) RETURNING *', [content, timestamp, source]);
-          console.log('Inserted new comment:', res.rows[0]);
-        } catch (err) {
-          console.error('Error inserting new comment:', err);
         }
         break;
 
@@ -88,12 +75,28 @@ wss.on('connection', (ws) => {
     }
   });
 
-  // Send an initial message to the client
-  ws.send(JSON.stringify({ type: 'init', message: 'Welcome to Kip Online Maker!' }));
+  // Send initial data to new WebSocket client
+  const sendInitialData = async () => {
+    try {
+      const levelsRes = await client.query('SELECT * FROM levels');
+      const levels = levelsRes.rows;
+
+      const messagesRes = await client.query('SELECT * FROM messages');
+      const messages = messagesRes.rows;
+
+      const initData = {
+        type: 'init',
+        levels,
+        messages,
+      };
+      ws.send(JSON.stringify(initData));
+    } catch (err) {
+      console.error('Error fetching initial data:', err);
+    }
+  };
+
+  // Send initial data on connection
+  sendInitialData();
 });
 
-// Start the server
-const PORT = process.env.PORT || 10001;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+console.log('WebSocket server running on ws://localhost:10001');
