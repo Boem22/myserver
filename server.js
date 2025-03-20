@@ -10,7 +10,10 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 // PostgreSQL client setup
 const client = new Client({
-  connectionString: DATABASE_URL
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Allow self-signed certificates
+  }
 });
 
 client.connect().then(() => {
@@ -25,14 +28,8 @@ const server = http.createServer((req, res) => {
   const ext = path.extname(filePath);
   const contentType = { '.html': 'text/html', '.ttf': 'font/ttf' }[ext] || 'text/plain';
   fs.readFile(filePath, (err, content) => {
-    if (err) { 
-      res.writeHead(404); 
-      res.end('Not found'); 
-    }
-    else { 
-      res.writeHead(200, { 'Content-Type': contentType }); 
-      res.end(content); 
-    }
+    if (err) { res.writeHead(404); res.end('Not found'); }
+    else { res.writeHead(200, { 'Content-Type': contentType }); res.end(content); }
   });
 });
 
@@ -43,7 +40,7 @@ wss.on('connection', ws => {
   // Initial data fetch from PostgreSQL
   client.query('SELECT * FROM messages ORDER BY timestamp ASC', (err, result) => {
     if (err) {
-      console.error('Database error during initialization', err);
+      console.error(err);
       return;
     }
     const messages = result.rows;
@@ -58,12 +55,11 @@ wss.on('connection', ws => {
       switch (m.type) {
         case 'comment':
           // Insert the new message into the PostgreSQL database
-          client.query('INSERT INTO messages(content, timestamp) VALUES($1, $2) RETURNING id', [m.content, m.timestamp], (err, result) => {
+          client.query('INSERT INTO messages(id, content, timestamp) VALUES($1, $2, $3)', [m.id, m.content, m.timestamp], (err) => {
             if (err) {
-              console.error('Error inserting message', err);
+              console.error(err);
               return;
             }
-            m.id = result.rows[0].id; // Assign the generated ID to the message
             wss.clients.forEach(client => {
               if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m));
             });
@@ -73,7 +69,7 @@ wss.on('connection', ws => {
           // Delete the message from PostgreSQL
           client.query('DELETE FROM messages WHERE id = $1', [m.messageId], (err) => {
             if (err) {
-              console.error('Error deleting message', err);
+              console.error(err);
               return;
             }
             wss.clients.forEach(client => {
