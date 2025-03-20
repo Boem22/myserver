@@ -2,63 +2,93 @@ const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { Client } = require('pg'); // Import PostgreSQL client
+require('dotenv').config(); // Load .env file
 
 const PORT = process.env.PORT || 8080;
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATABASE_URL = process.env.DATABASE_URL;
 
-let data = { messages: [], levels: [] };
+// PostgreSQL client setup
+const client = new Client({
+  connectionString: DATABASE_URL
+});
 
-try {
-  data = JSON.parse(fs.readFileSync(DATA_FILE));
-} catch (err) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-}
+client.connect().then(() => {
+  console.log('Connected to PostgreSQL');
+}).catch((err) => {
+  console.error('Connection error', err.stack);
+});
 
+// WebSocket server setup
 const server = http.createServer((req, res) => {
   const filePath = path.join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
   const ext = path.extname(filePath);
   const contentType = { '.html': 'text/html', '.ttf': 'font/ttf' }[ext] || 'text/plain';
   fs.readFile(filePath, (err, content) => {
-    if (err) { res.writeHead(404); res.end('Not found'); }
-    else { res.writeHead(200, { 'Content-Type': contentType }); res.end(content); }
-  });
-});
-
-const wss = new WebSocket.Server({ server });
-
-wss.on('connection', ws => {
-  ws.send(JSON.stringify({ type: 'init', messages: data.messages, levels: data.levels }));
-  ws.on('message', rawData => {
-    try {
-      let m = JSON.parse(rawData.toString());
-      if (!m.type) return;
-      switch (m.type) {
-        case 'comment':
-          if (!data.messages.some(x => x.id === m.id)) data.messages.push(m);
-          break;
-        case 'new_level':
-          if (!data.levels.some(x => x.id === m.level.id)) data.levels.push(m.level);
-          break;
-        case 'delete_message':
-          data.messages = data.messages.filter(x => x.id !== m.messageId);
-          break;
-        case 'delete_level':
-          data.levels = data.levels.filter(x => x.id !== m.levelId);
-          break;
-      }
-      fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-      wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m)); });
-    } catch (err) {
-      try {
-        const m = { type: 'comment', content: rawData.toString(), id: Date.now(), timestamp: Date.now(), source: 'turbowarp' };
-        if (!data.messages.some(x => x.id === m.id)) {
-          data.messages.push(m);
-          fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m)); });
-        }
-      } catch (parseError) {}
+    if (err) { 
+      res.writeHead(404); 
+      res.end('Not found'); 
+    }
+    else { 
+      res.writeHead(200, { 'Content-Type': contentType }); 
+      res.end(content); 
     }
   });
 });
 
-server.listen(PORT);
+// WebSocket server setup
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', ws => {
+  // Initial data fetch from PostgreSQL
+  client.query('SELECT * FROM messages ORDER BY timestamp ASC', (err, result) => {
+    if (err) {
+      console.error('Database error during initialization', err);
+      return;
+    }
+    const messages = result.rows;
+    ws.send(JSON.stringify({ type: 'init', messages }));
+  });
+
+  ws.on('message', rawData => {
+    try {
+      let m = JSON.parse(rawData.toString());
+      if (!m.type) return;
+
+      switch (m.type) {
+        case 'comment':
+          // Insert the new message into the PostgreSQL database
+          client.query('INSERT INTO messages(content, timestamp) VALUES($1, $2) RETURNING id', [m.content, m.timestamp], (err, result) => {
+            if (err) {
+              console.error('Error inserting message', err);
+              return;
+            }
+            m.id = result.rows[0].id; // Assign the generated ID to the message
+            wss.clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m));
+            });
+          });
+          break;
+        case 'delete_message':
+          // Delete the message from PostgreSQL
+          client.query('DELETE FROM messages WHERE id = $1', [m.messageId], (err) => {
+            if (err) {
+              console.error('Error deleting message', err);
+              return;
+            }
+            wss.clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m));
+            });
+          });
+          break;
+      }
+    } catch (err) {
+      console.error('Error parsing message:', err);
+    }
+  });
+});
+
+// Start the HTTP server
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
