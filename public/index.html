@@ -8,6 +8,9 @@
     @font-face { font-family: 'Pixeled'; src: url('Pixeled.ttf') format('truetype'); }
     body { font-family: 'Pixeled', sans-serif; background-color: #1e1e1e; color: #fef4b8; margin: 0; padding: 20px; }
     h1 { font-size: 2.5rem; text-align: center; margin-bottom: 20px; }
+    #admin-login { margin-bottom: 20px; }
+    #admin-login input, #admin-login button { padding: 5px; margin: 5px 0; background-color: #444; color: #fef4b8; border: 1px solid #666; border-radius: 3px; }
+    .hidden { display: none; }
     #game-container { margin-bottom: 20px; }
     iframe { border: 2px solid #666; border-radius: 5px; }
     #controls-container { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
@@ -16,13 +19,20 @@
     #level-input-container input { width: calc(100% - 90px); }
     #search-input { width: 100%; padding: 8px; background-color: #444; color: #fef4b8; border: 1px solid #666; border-radius: 3px; }
     #levels-container, #comments-container { border: 1px solid #ccc; border-radius: 5px; padding: 10px; margin-bottom: 20px; background-color: #2d2d2d; }
-    .level-card { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #3a3a3a; }
+    .level-card { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #3a3a3a; display: flex; justify-content: space-between; align-items: center; }
     .comment { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 5px; background-color: #3a3a3a; }
+    .delete-btn, .delete-level-btn { margin-left: 10px; color: red; cursor: pointer; }
     .timestamp { font-size: 0.8em; color: #888; margin-left: 10px; }
   </style>
 </head>
 <body>
   <h1>Kip Online Maker</h1>
+  <div id="admin-login">
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="login-btn" onclick="login()">Login</button>
+    <button id="logout-btn" class="hidden" onclick="logout()">Logout</button>
+  </div>
   <div id="game-container">
     <iframe frameborder="0" src="https://itch.io/embed-upload/13098567?color=fef4b8" allowfullscreen width="720" height="500"></iframe>
   </div>
@@ -40,11 +50,46 @@
 
   <!-- Client-side JavaScript to handle WebSocket connection and UI interactions -->
   <script>
+    // Determine the correct WebSocket protocol based on the page protocol
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    // Connect to the WebSocket server using the current host (Render routes traffic correctly)
     const ws = new WebSocket(protocol + "//" + window.location.host);
+    let isAdmin = false;
     const levels = JSON.parse(localStorage.getItem('levels')) || [];
+    const deletedMessages = new Set(JSON.parse(localStorage.getItem('deletedMessages')) || []);
+    const deletedLevels = new Set(JSON.parse(localStorage.getItem('deletedLevels')) || []);
     let messages = [];
 
+    // Admin UI logic
+    function initAdminUI() {
+      document.getElementById('login-btn').classList.toggle('hidden', isAdmin);
+      document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
+      document.querySelectorAll('.delete-btn, .delete-level-btn').forEach(btn => {
+        btn.style.display = isAdmin ? 'inline-block' : 'none';
+      });
+    }
+
+    // Admin login
+    function login() {
+      const user = document.getElementById('username').value;
+      const pass = document.getElementById('password').value;
+      if (user === 'Admin' && pass === '1622005') {
+        isAdmin = true;
+        initAdminUI();
+        renderLevels();
+        renderComments();
+      }
+    }
+
+    // Admin logout
+    function logout() {
+      isAdmin = false;
+      initAdminUI();
+      renderLevels();
+      renderComments();
+    }
+
+    // Add level
     function addLevel() {
       const levelInput = document.getElementById('level-input');
       const levelCode = levelInput.value.trim();
@@ -58,63 +103,134 @@
       }
     }
 
-    function renderLevels() {
-      const container = document.getElementById('levels-container');
-      container.innerHTML = levels.map(l => `<div class="level-card">${l.name}</div>`).join('');
-      filterContent(document.getElementById('search-input').value);
+    // Delete level
+    function deleteLevel(levelId) {
+      const index = levels.findIndex(l => l.id === levelId);
+      if (index !== -1) {
+        levels.splice(index, 1);
+        localStorage.setItem('levels', JSON.stringify(levels));
+        deletedLevels.add(levelId);
+        localStorage.setItem('deletedLevels', JSON.stringify([...deletedLevels]));
+        renderLevels();
+        ws.send(JSON.stringify({ type: 'delete_level', levelId }));
+      }
     }
 
-    function renderComments() {
-      const container = document.getElementById('comments-container');
-      container.innerHTML = messages.map(m => `
-        <div class="comment">
-          <div>${m.content}</div>
-          <small class="timestamp">${new Date(m.timestamp).toLocaleTimeString()}</small>
+    // Render levels
+    function renderLevels() {
+      const container = document.getElementById('levels-container');
+      const sorted = [...levels].filter(l => !deletedLevels.has(l.id)).sort((a, b) => a.name.localeCompare(b.name));
+      container.innerHTML = sorted.map(l => `
+        <div class="level-card" data-id="${l.id}">
+          <div>${l.name}</div>
+          ${isAdmin ? `<div class="delete-level-btn" onclick="deleteLevel(${l.id})">🗑️</div>` : ''}
         </div>
       `).join('');
       filterContent(document.getElementById('search-input').value);
     }
 
+    // Render comments
+    function renderComments() {
+      const container = document.getElementById('comments-container');
+      container.innerHTML = '';
+      messages.forEach(m => {
+        if (!deletedMessages.has(m.id)) container.insertAdjacentHTML('afterbegin', createCommentHTML(m));
+      });
+      filterContent(document.getElementById('search-input').value);
+    }
+
+    // Create comment HTML structure
+    function createCommentHTML(m) {
+      const isTW = m.source === 'turbowarp';
+      return `
+        <div class="comment" data-id="${m.id}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="content">${m.content}</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${!isTW ? `<small class="timestamp">${new Date(m.timestamp).toLocaleTimeString()}</small>` : ''}
+              ${isAdmin ? `<div class="delete-btn" onclick="deleteComment(${m.id})">🗑️</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render new comment
+    function renderNewComment(m) {
+      if (deletedMessages.has(m.id)) return;
+      const container = document.getElementById('comments-container');
+      container.insertAdjacentHTML('afterbegin', createCommentHTML(m));
+      filterContent(document.getElementById('search-input').value);
+    }
+
+    // Filter content by search term
     function filterContent(term) {
       term = term.toLowerCase().trim();
       document.querySelectorAll('.comment').forEach(c => {
-        c.style.display = c.textContent.toLowerCase().includes(term) ? 'block' : 'none';
+        const content = c.querySelector('.content').textContent.toLowerCase();
+        c.style.display = content.includes(term) ? 'block' : 'none';
       });
       document.querySelectorAll('.level-card').forEach(l => {
-        l.style.display = l.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
+        const name = l.querySelector('div').textContent.toLowerCase().trim();
+        l.style.display = name.includes(term) ? 'flex' : 'none';
       });
     }
 
+    // Delete comment
+    function deleteComment(id) {
+      deletedMessages.add(id);
+      localStorage.setItem('deletedMessages', JSON.stringify([...deletedMessages]));
+      document.querySelector(`.comment[data-id="${id}"]`)?.remove();
+      ws.send(JSON.stringify({ type: 'delete_message', messageId: id }));
+    }
+
+    // WebSocket message handling
     ws.onmessage = (event) => {
       const m = JSON.parse(event.data);
       switch(m.type) {
         case 'init':
+          levels.length = 0;
+          levels.push(...m.levels.filter(l => !deletedLevels.has(l.id)));
           messages = m.messages;
           renderLevels();
           renderComments();
           break;
         case 'comment':
           messages.push(m);
-          renderComments();
+          renderNewComment(m);
+          break;
+        case 'delete_level':
+          deletedLevels.add(m.levelId);
+          renderLevels();
+          break;
+        case 'delete_message':
+          deletedMessages.add(m.messageId);
+          document.querySelector(`.comment[data-id="${m.messageId}"]`)?.remove();
           break;
       }
     };
 
+    // Listen to messages from the embedded game (TurboWarp)
     window.addEventListener('message', (e) => {
       if (e.origin !== 'https://turbowarp.org') return;
       try {
         const m = {
           type: 'comment',
           content: String(e.data),
+          id: Date.now(),
           timestamp: Date.now(),
           source: 'turbowarp'
         };
+        const temp = document.querySelector(`.comment[data-id="temp-${m.id}"]`);
+        if (temp) temp.remove();
         ws.send(JSON.stringify(m));
       } catch (err) {
         console.error('Error handling TurboWarp message:', err);
       }
     });
 
+    // Initialize admin UI and render levels at startup
+    initAdminUI();
     renderLevels();
   </script>
 </body>
